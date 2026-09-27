@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TFT 11</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="theme-color" content="#2563eb">
+  <style>
+    :root {
+      --bg-color: #f4f6f9; --card-bg: #ffffff; --text-main: #1e293b;
+      --text-muted: #64748b; --border-color: #e2e8f0; --primary-blue: #2563eb;
+      --primary-blue-hover: #1d4ed8; --danger-red: #ef4444; --input-bg: #ffffff;
+      --nav-height: 65px;
+    }
+    [data-theme="dark"] {
+      --bg-color: #0f172a; --card-bg: #1e293b; --text-main: #f8fafc;
+      --text-muted: #94a3b8; --border-color: #334155; --primary-blue: #3b82f6; --input-bg: #0f172a;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 16px; padding-bottom: calc(90px + var(--nav-height)); transition: background-color 0.3s, color 0.3s; user-select: none; }
+    .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: background-color 0.3s; }
+    
+    #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
+    #app-content { display: none; }
+
+    .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height); background: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; z-index: 9000; padding-bottom: env(safe-area-inset-bottom); }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: color 0.2s; }
+    .nav-item.active { color: var(--primary-blue); }
+    .nav-item svg { margin-bottom: 4px; stroke: currentColor; }
+
+    .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); }
+    .user-info { display: flex; align-items: center; gap: 12px; }
+    .avatar { width: 44px; height: 44px; background-color: var(--primary-blue); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; overflow: hidden; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .greeting { font-size: 13px; color: var(--text-muted); margin: 0; }
+    .user-name { font-size: 18px; font-weight: 700; margin: 0; }
+    .header-actions { display: flex; gap: 16px; align-items: center; }
+    .icon-btn { background: none; border: none; cursor: pointer; font-size: 22px; color: var(--text-main); padding: 0; }
+    h3 { margin-top: 0; font-size: 18px; margin-bottom: 16px; }
+    
+    .log-layout { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+    .amounts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; }
+    .amounts-row label { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .amounts-row input, .amounts-row select { padding: 9px 4px; font-size: 13px; }
+    
+    .input-group { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+    input, select { padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-main); font-size: 14px; width: 100%; box-sizing: border-box; }
+    input:disabled { opacity: 0.7; }
+    
+    .add-btn { background: var(--primary-blue); color: white; border: none; border-radius: 8px; height: 38px; width: 100%; font-size: 24px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .load-more-btn { background: var(--bg-color); color: var(--primary-blue); border: 1px solid var(--primary-blue); padding: 10px; width: 100%; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; margin-top: 10px; }
+    
+    .list-container { display: flex; flex-direction: column; margin-top: 8px; }
+    .record-card { padding: 14px 4px; border-bottom: 1px solid var(--border-color); display: grid; gap: 10px 6px; align-items: center; }
+    
+    .sale-card { grid-template-columns: 1fr 1fr 1fr 64px; }
+    .vendor-card { grid-template-columns: 1.2fr 0.9fr 1.2fr 68px; }
+    .record-card:last-child { border-bottom: none; }
+    
+    .amt-box { display: flex; flex-direction: column; gap: 2px; }
+    .amt-lbl { font-size: 9px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.3px; }
+    .amt-val { font-size: 13px; font-weight: 500; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .amt-total .amt-val { font-weight: 700; color: var(--primary-blue); }
+    
+    .action-col { display: flex; gap: 6px; justify-content: flex-end; }
+    .sale-card .action-col { grid-column: 4; grid-row: 1 / span 2; }
+    .vendor-card .action-col { grid-column: 4; grid-row: 2 / span 2; align-items: flex-start; justify-content: flex-end; }
+    
+    .action-btn { background: none; border: 1px solid; border-radius: 4px; padding: 6px; cursor: pointer; display: flex; align-items: center; height: fit-content; }
+    .edit-btn { color: var(--primary-blue); border-color: var(--primary-blue); }
+    .del-btn { color: var(--danger-red); border-color: var(--danger-red); }
+    
+    .record-meta { grid-column: 1 / -1; font-size: 11px; color: var(--text-muted); margin-top: 2px; opacity: 0.9; }
+
+    .fab-menu { position: fixed; bottom: calc(24px + var(--nav-height)); right: 24px; background: var(--primary-blue); color: white; border-radius: 50%; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); cursor: pointer; z-index: 1000; transition: transform 0.2s; }
+    .fab-menu:active { transform: scale(0.95); }
+    #dashboard-section { display: none; }
+    
+    .chart-wrapper { position: relative; min-height: 450px; height: 60vh; width: 100%; margin-top: 10px; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 10000; padding: 16px; box-sizing: border-box; }
+    .modal-container { width: 100%; max-width: 400px; padding: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); }
+    .modal-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+    .cancel-btn { background: var(--border-color); color: var(--text-main); border: none; border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer; text-align: center; }
+    .save-btn { background: var(--primary-blue); color: white; border: none; border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer; text-align: center; }
+
+    /* Receipt Build UI - Compacted */
+    .receipt-vendor-block { border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-bottom: 10px; background: var(--card-bg); }
+    .receipt-fruit-row { display: grid; grid-template-columns: 1fr 2fr 38px 38px; gap: 6px; align-items: end; margin-top: 6px; }
+
+    /* Compact Table Styles */
+    .table-wrapper { overflow-x: auto; width: 100%; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
+    .compact-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .compact-table th { background: #f8fafc; color: var(--text-muted); font-weight: 600; text-align: right; padding: 8px 6px; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
+    .compact-table th:nth-child(1), .compact-table th:nth-child(2), .compact-table th:nth-child(3) { text-align: left; }
+    .compact-table td { padding: 8px 6px; border-bottom: 1px solid var(--border-color); text-align: right; color: var(--text-main); white-space: nowrap; }
+    .compact-table td:nth-child(1), .compact-table td:nth-child(2), .compact-table td:nth-child(3) { text-align: left; }
+    .compact-table tr:last-child td { border-bottom: none; }
+    [data-theme="dark"] .compact-table th { background: #0f172a; }
+
+    /* Compact Fruit Summary Table */
+    .compact-summary-table { border-collapse: collapse; font-size: 10px; text-align: center; margin-bottom: 10px; white-space: nowrap; }
+    .compact-summary-table th, .compact-summary-table td { padding: 3px 6px; border: 1px solid var(--border-color); }
+    .compact-summary-table th { background: #f8fafc; color: var(--text-main); font-weight: 700; }
+    .compact-summary-table td { font-weight: 600; color: var(--primary-blue); }
+    [data-theme="dark"] .compact-summary-table th { background: #0f172a; }
+
+    /* Search As You Type Pill Recommendations */
+    .recs-container { border-radius: 8px; padding: 8px 10px 2px 10px; margin-top: 4px; grid-column: 1 / -1; }
+    .recs-container.warning { background-color: #fee2e2; }
+    .recs-container.info { background-color: #d1fae5; }
+    [data-theme="dark"] .recs-container.warning { background-color: #450a0a; border: 1px solid #7f1d1d; }
+    [data-theme="dark"] .recs-container.info { background-color: #064e3b; border: 1px solid #065f46; }
+    .recs-title { font-size: 11px; margin-bottom: 6px; font-weight: 600; }
+    .recs-title.warning { color: var(--danger-red); }
+    .recs-title.info { color: #047857; }
+    [data-theme="dark"] .recs-title.info { color: #34d399; }
+    .rec-pill { display: inline-block; background-color: #fca5a5; color: #7f1d1d; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-right: 6px; margin-bottom: 6px; cursor: pointer; transition: background-color 0.2s; }
+    .rec-pill:active { background-color: #f87171; }
+    [data-theme="dark"] .rec-pill { background-color: #7f1d1d; color: #fca5a5; }
+
+    body.privacy-mode .amt-val, body.privacy-mode td { filter: blur(6px); opacity: 0.6; }
+    body.privacy-mode input[type="number"], body.privacy-mode select { filter: blur(6px); opacity: 0.6; pointer-events: none; }
+    body.privacy-mode #month-calc, body.privacy-mode #vendor-month-calc, body.privacy-mode #dashMonthTotal, body.privacy-mode #receiptTotalCarriage { filter: blur(6px); opacity: 0.6; }
+    body.privacy-mode .chart-wrapper { filter: blur(6px); opacity: 0.6; pointer-events: none; }
+  </style>
+</head>
+<body class="privacy-mode">
+
+  <datalist id="fruitDatalist"></datalist>
+  <datalist id="vendorDatalist"></datalist>
+
+  <div id="login-screen">
+    <div class="card" style="text-align: center; padding: 30px;">
+      <h2>TFT 11</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">Please sign in to continue</p>
+      <div id="g_id_onload" data-client_id="655668295950-mr71s07boak5mne39ujqiaobob0kdvau.apps.googleusercontent.com" data-context="signin" data-ux_mode="popup" data-callback="handleCredentialResponse" data-auto_prompt="false"></div>
+      <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+    </div>
+  </div>
+
+  <div id="app-content">
+    <header class="app-header">
+      <div class="user-info">
+        <div class="avatar" id="userAvatar">U</div>
+        <div>
+          <p class="greeting">Hello,</p>
+          <p class="user-name" id="userNameDisplay">User 👋</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="toggleTheme()" id="themeIcon">🌙</button>
+        <button class="icon-btn" style="color: var(--danger-red);" onclick="logout()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- TAB 1: SALE -->
+    <div id="sale-section">
+      <div class="card">
+        <h3>Log Amounts</h3>
+        <div class="log-layout">
+          <div class="input-group">
+            <label>Date</label>
+            <input type="date" id="entryDate" required>
+          </div>
+          <div class="amounts-row">
+            <div class="input-group"><label title="Cash Counted (₹)">Cash Counted</label><input type="number" id="cashCounted" value="0" step="any"></div>
+            <div class="input-group"><label>UPI (₹)</label><input type="number" id="upi" value="0" step="any"></div>
+            <div class="input-group"><label>Credit (₹)</label><input type="number" id="credit" value="0" step="any"></div>
+            <div class="input-group"><label>Cheque (₹)</label><input type="number" id="cheque" value="0" step="any"></div>
+            <div class="input-group"><label>Others (₹)</label><input type="number" id="others" value="0" step="any"></div>
+            <button class="add-btn" id="saveBtn" onclick="saveEntry('sale')">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0;">Recent Records</h3>
+          <span style="font-size: 14px; color: var(--text-muted); font-weight: 600;" id="month-calc"></span>
+        </div>
+        <div class="list-container" id="data-list-body">
+          <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading data...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: VENDOR PAYMENTS -->
+    <div id="vendor-section" style="display: none;">
+      <div class="card">
+        <h3>Log Payment</h3>
+        <div class="log-layout">
+          <div class="amounts-row" style="grid-template-columns: 1fr;">
+            <div class="input-group">
+              <label>Date</label>
+              <input type="date" id="vendorDate" required>
+            </div>
+          </div>
+          <div class="amounts-row" style="grid-template-columns: 1.5fr 1fr; gap: 8px; margin-top:6px;">
+            <div class="input-group">
+              <label>Vendor Name</label>
+              <input type="text" id="vendorNameInput" list="vendorDatalist" placeholder="Search or add new..." autocomplete="off">
+            </div>
+            <div class="input-group">
+              <label>Payment Mode</label>
+              <select id="vendorPaymentMode">
+                <option value="Cash">Cash</option>
+                <option value="UPI">UPI</option>
+                <option value="Transfer">Transfer</option>
+              </select>
+            </div>
+          </div>
+          <div class="amounts-row" style="grid-template-columns: 1fr 1fr 44px; gap: 8px; margin-top:6px;">
+            <div class="input-group"><label>Amount (₹)</label><input type="number" id="vendorAmount" value="0" step="any"></div>
+            <button class="add-btn" id="stageVendorBtn" onclick="stageVendorPayment()" style="grid-column: 3;">+</button>
+          </div>
+        </div>
+
+        <div id="stagedPaymentsContainer" style="margin-top: 16px; display: none;">
+          <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">To be saved:</h4>
+          <div id="stagedPaymentsList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+          <button class="add-btn" style="margin-top: 16px; font-size: 16px; background: #10b981;" id="saveBulkVendorBtn" onclick="saveAllVendorPayments()">Save All Payments</button>
+        </div>
+
+      </div>
+
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0;">Recent Payments</h3>
+          <span style="font-size: 14px; color: var(--text-muted); font-weight: 600;" id="vendor-month-calc"></span>
+        </div>
+        <div class="list-container" id="vendor-list-body">
+          <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading data...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: VENDOR RECEIPTS (BILLS) -->
+    <div id="receipt-section" style="display: none;">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="margin: 0;">Log Bill</h3>
+          <span style="font-size: 14px; font-weight: 700; color: var(--primary-blue);">Total: ₹<span id="receiptTotalCarriage">0</span></span>
+        </div>
+        
+        <div class="input-group" style="margin-bottom: 12px;">
+          <label>Date</label>
+          <input type="date" id="receiptDate" required>
+        </div>
+
+        <div id="receiptVendorsContainer">
+          <!-- Dynamic Vendor Blocks injected here -->
+        </div>
+
+        <!-- Compact Side-by-Side Action Buttons -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+          <button class="load-more-btn" style="margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="addReceiptVendorBlock()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg> Vendor
+          </button>
+          <button class="add-btn" style="margin: 0; font-size: 15px; background: #10b981; display: flex; align-items: center; justify-content: center; gap: 6px;" id="saveReceiptsBtn" onclick="saveAllReceipts()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Save All
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0;">Recent Bills</h3>
+        </div>
+        <div class="list-container" id="receipt-list-body">
+          <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading data...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard-section" class="card">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px;">
+        <h3 id="dashTitle" style="margin: 0;">Monthly Overview</h3>
+        <span id="dashMonthTotal" style="font-size: 13px; font-weight: 700; color: var(--primary-blue); display: none;"></span>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="monthlyChart"></canvas>
+        <canvas id="vendorMonthlyChart" style="display: none;"></canvas>
+      </div>
+    </div>
+
+    <div class="fab-menu" id="fabMenu" onclick="toggleDashboard()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="nav-item active" id="nav-sale" onclick="switchTab('sale')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+      Sale
+    </div>
+    <div class="nav-item" id="nav-vendor" onclick="switchTab('vendor')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+      Payments
+    </div>
+    <div class="nav-item" id="nav-receipt" onclick="switchTab('receipt')">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"></path><polyline points="1 3 23 3 23 8 1 8 1 3"></polyline><path d="M10 12h4"></path></svg>
+      Bills
+    </div>
+  </nav>
+
+  <!-- Sales Edit Modal -->
+  <div id="editModalOverlay" class="modal-overlay">
+    <div class="card modal-container">
+      <h3 style="margin-bottom: 14px;">Modify Record</h3>
+      <div class="modal-edit-grid">
+        <div class="input-group"><label>Cash Counted (₹)</label><input type="number" id="editCashCounted" step="any"></div>
+        <div class="input-group"><label>UPI (₹)</label><input type="number" id="editUpi" step="any"></div>
+        <div class="input-group"><label>Credit (₹)</label><input type="number" id="editCredit" step="any"></div>
+        <div class="input-group"><label>Cheque (₹)</label><input type="number" id="editCheque" step="any"></div>
+        <div class="input-group"><label>Others (₹)</label><input type="number" id="editOthers" step="any"></div>
+      </div>
+      <div class="modal-action-row">
+        <button class="cancel-btn" onclick="closeEditModal()">Cancel</button>
+        <button class="save-btn" onclick="submitEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vendor Edit Modal -->
+  <div id="vendorEditModalOverlay" class="modal-overlay">
+    <div class="card modal-container">
+      <h3 style="margin-bottom: 14px;">Modify Vendor Payment</h3>
+      <div class="modal-edit-grid">
+        <div class="input-group"><label>Date</label><input type="date" id="editVendorDate"></div>
+        <div class="input-group">
+          <label>Vendor Name</label>
+          <input type="text" id="editVendorNameInput" list="editVendorDatalist" autocomplete="off">
+        </div>
+        <div class="input-group">
+          <label>Payment Mode</label>
+          <select id="editVendorMode">
+            <option value="Cash">Cash</option>
+            <option value="UPI">UPI</option>
+            <option value="Transfer">Transfer</option>
+          </select>
+        </div>
+        <div class="input-group" style="grid-column: 1 / -1;"><label>Amount (₹)</label><input type="number" id="editVendorAmount" step="any"></div>
+      </div>
+      <div class="modal-action-row">
+        <button class="cancel-btn" onclick="closeVendorEditModal()">Cancel</button>
+        <button class="save-btn" onclick="submitVendorEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Universal Receipt/Bill Edit Modal -->
+  <div id="receiptEditModalOverlay" class="modal-overlay">
+    <div class="card modal-container">
+      <h3 style="margin-bottom: 14px;" id="receiptEditModalTitle">Edit Entry</h3>
+      <div class="modal-edit-grid" id="receiptEditGrid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="input-group" id="editReceiptDateGroup" style="display:none; grid-column: 1 / -1;"><label>New Date</label><input type="date" id="editReceiptDateInput"></div>
+        <div class="input-group" id="editReceiptVendorGroup"><label>Vendor</label><input type="text" id="editReceiptVendorName" list="vendorDatalist" autocomplete="off"></div>
+        <div class="input-group" id="editReceiptCarriageGroup"><label>Carriage (₹)</label><input type="number" id="editReceiptCarriage" step="any"></div>
+        
+        <!-- Modal Fruit Input with dynamic pill recommendations -->
+        <div class="input-group" id="editReceiptFruitGroup" style="grid-column: 1 / -1;">
+          <label>Fruit</label>
+          <input type="text" id="editReceiptFruitName" list="fruitDatalist" autocomplete="off" oninput="checkModalFruitRecs(this)">
+          <div id="editFruitRecsContainer" class="recs-container" style="display:none;"></div>
+        </div>
+        
+        <div class="input-group" id="editReceiptQtyGroup" style="grid-column: 1 / -1;"><label>Qty</label><input type="number" id="editReceiptFruitQty" step="any"></div>
+      </div>
+      <div class="modal-action-row">
+        <button class="cancel-btn" onclick="closeReceiptEditModal()">Cancel</button>
+        <button class="save-btn" onclick="submitReceiptEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyt1d1zgoSl1GhdzT0EMFOfTa-9qUofd7AHI4yi7PsGVoxC4W_MeZ8aT9KR5hOYrEWbWg/exec"; 
+
+    // Helper to safely extract local YYYY-MM-DD to avoid timezone shifting
+    function toYMD(dateVal) {
+      if (!dateVal) return null;
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return null;
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
+    let appData = { sale: [], payment: [], receipt: [], uniqueVendors: [], uniqueFruits: [], vendorChartData: {} };
+    let chartData = {}; 
+    let dashboardOpen = false;
+    let currentTab = 'sale';
+    let stagedVendorPayments = [];
+
+    let receiptDraft = [];
+    let activeReceiptEdit = null;
+
+    try {
+      const cData = localStorage.getItem('tft_cache_state');
+      if (cData && cData !== "undefined" && cData !== "null") {
+        const parsed = JSON.parse(cData);
+        if (parsed && Array.isArray(parsed.sale)) appData = parsed;
+      }
+      const cChart = localStorage.getItem('tft_cache_chart');
+      if (cChart && cChart !== "undefined" && cChart !== "null") chartData = JSON.parse(cChart);
+    } catch (e) { 
+      localStorage.removeItem('tft_cache_state'); 
+      localStorage.removeItem('tft_cache_chart'); 
+    }
+
+    let mtdTotal = localStorage.getItem('tft_cache_total') || 0;
+    if (mtdTotal === "undefined" || mtdTotal === "null") mtdTotal = 0;
+
+    let offsets = { sale: 0, payment: 0, receipt: 0 };
+    let hasMore = { sale: false, payment: false, receipt: false };
+    let activeEditId = null; 
+    let activeVendorEditId = null;
+
+    let currentUserEmail = localStorage.getItem('tft_user_email') || "";
+    let currentUserName = localStorage.getItem('tft_user_name') || "";
+    let currentUserPic = localStorage.getItem('tft_user_pic') || "";
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      document.getElementById('themeIcon').innerText = theme === 'light' ? '🌙' : '☀️';
+      if (dashboardOpen) renderChart();
+    }
+    function toggleTheme() {
+      const newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      localStorage.setItem('tft_user_theme', newTheme); applyTheme(newTheme);
+    }
+    function initTheme() {
+      const savedTheme = localStorage.getItem('tft_user_theme');
+      if (savedTheme) applyTheme(savedTheme);
+      else applyTheme(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      if (!localStorage.getItem('tft_user_theme')) applyTheme(e.matches ? 'dark' : 'light');
+    });
+
+    let lastTapTime = 0;
+    document.addEventListener('touchend', function(e) {
+      const t = new Date().getTime(), len = t - lastTapTime;
+      if (len < 300 && len > 0) {
+        const tag = e.target.tagName.toLowerCase();
+        if (!['button','input','select','svg','path','polyline','line'].includes(tag)) {
+          document.body.classList.toggle('privacy-mode'); e.preventDefault();
+        }
+      }
+      lastTapTime = t;
+    });
+    document.addEventListener('dblclick', function(e) {
+      const tag = e.target.tagName.toLowerCase();
+      if (!['button','input','select','svg','path','polyline','line'].includes(tag)) document.body.classList.toggle('privacy-mode');
+    });
+
+    window.onload = function() {
+      initTheme();
+      const todayInit = new Date().toISOString().split('T')[0];
+      document.getElementById('entryDate').value = todayInit;
+      document.getElementById('vendorDate').value = todayInit;
+      document.getElementById('receiptDate').value = todayInit;
+
+      addReceiptVendorBlock();
+
+      if (currentUserEmail) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-content').style.display = 'block';
+        updateProfileUI(currentUserName, currentUserPic);
+        
+        if (appData.sale && appData.sale.length > 0) renderAll();
+        else document.getElementById('data-list-body').innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading data...</div>';
+        
+        apiCall('get');
+      }
+    };
+
+    function handleCredentialResponse(response) {
+      let base64Url = response.credential.split('.')[1];
+      let jsonPayload = decodeURIComponent(window.atob(base64Url.replace(/-/g, '+').replace(/_/g, '/')).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+      const p = JSON.parse(jsonPayload);
+      
+      currentUserEmail = p.email.toLowerCase(); currentUserName = p.given_name || p.name.split(' ')[0]; currentUserPic = p.picture;
+      localStorage.setItem('tft_user_email', currentUserEmail); localStorage.setItem('tft_user_name', currentUserName); localStorage.setItem('tft_user_pic', currentUserPic);
+
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-content').style.display = 'block';
+      updateProfileUI(currentUserName, currentUserPic);
+      apiCall('get');
+    }
+
+    function updateProfileUI(name, pic) {
+      document.getElementById('userNameDisplay').innerText = name + " 👋";
+      document.getElementById('userAvatar').innerHTML = pic ? `<img src="${pic}" alt="Profile" referrerpolicy="no-referrer">` : name.charAt(0).toUpperCase();
+    }
+    function logout() { localStorage.clear(); location.reload(); }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById('nav-' + tab).classList.add('active');
+      
+      if (dashboardOpen) toggleDashboard(); 
+      
+      document.getElementById('sale-section').style.display = tab === 'sale' ? 'block' : 'none';
+      document.getElementById('vendor-section').style.display = tab === 'vendor' ? 'block' : 'none';
+      document.getElementById('receipt-section').style.display = tab === 'receipt' ? 'block' : 'none';
+      
+      document.getElementById('fabMenu').style.display = tab === 'receipt' ? 'none' : 'flex'; 
+    }
+
+    function toggleDashboard() {
+      dashboardOpen = !dashboardOpen;
+      if (dashboardOpen) {
+        document.getElementById('sale-section').style.display = 'none';
+        document.getElementById('vendor-section').style.display = 'none';
+        document.getElementById('receipt-section').style.display = 'none';
+        document.getElementById('dashboard-section').style.display = 'block';
+        
+        if (currentTab === 'sale') {
+          document.getElementById('dashTitle').innerText = 'Monthly Overview';
+          document.getElementById('dashMonthTotal').innerText = 'This Month: ₹' + formatINR(mtdTotal);
+          document.getElementById('monthlyChart').style.display = 'block';
+          document.getElementById('vendorMonthlyChart').style.display = 'none';
+        } else {
+          document.getElementById('dashTitle').innerText = 'Vendor Payments Overview';
+          
+          let vendorMonthTotalAmt = 0;
+          const now = new Date();
+          const currMYStr = now.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+          if (appData.vendorChartData && appData.vendorChartData[currMYStr]) {
+            vendorMonthTotalAmt = appData.vendorChartData[currMYStr].total;
+          }
+
+          document.getElementById('dashMonthTotal').innerText = 'This Month: ₹' + formatINR(vendorMonthTotalAmt);
+          document.getElementById('monthlyChart').style.display = 'none';
+          document.getElementById('vendorMonthlyChart').style.display = 'block';
+        }
+        setTimeout(() => renderChart(), 50); 
+      } else {
+        document.getElementById('dashboard-section').style.display = 'none';
+        switchTab(currentTab); 
+      }
+    }
+
+    async function apiCall(action, payload = {}) {
+      const data = { action: (action === 'loadMore' ? 'get' : action), target: payload.target || currentTab, user: currentUserEmail, ...payload };
+      try {
+        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
+        const result = await response.json();
+        if (result.error) return alert("Database Error: " + result.error);
+
+        if (action === 'loadMore') {
+          if (data.target === 'sale') { appData.sale = [...appData.sale, ...(result.saleRows||[])]; offsets.sale += 10; hasMore.sale = result.saleHasMore; }
+          else if (data.target === 'payment') { appData.payment = [...appData.payment, ...(result.paymentRows||[])]; offsets.payment += 10; hasMore.payment = result.paymentHasMore; }
+          else if (data.target === 'receipt') { appData.receipt = [...(appData.receipt||[]), ...(result.receiptRows||[])]; offsets.receipt += 5; hasMore.receipt = result.receiptHasMore; }
+        } else {
+          if (result.saleRows) { appData.sale = result.saleRows; offsets.sale = 0; hasMore.sale = result.saleHasMore; }
+          if (result.paymentRows) { appData.payment = result.paymentRows; offsets.payment = 0; hasMore.payment = result.paymentHasMore; }
+          if (result.receiptRows) { appData.receipt = result.receiptRows; offsets.receipt = 0; hasMore.receipt = result.receiptHasMore; }
+          if (result.uniqueVendors) appData.uniqueVendors = result.uniqueVendors;
+          
+          // ADDED BACK: Assign uniqueFruits from backend to app state
+          if (result.uniqueFruits) appData.uniqueFruits = result.uniqueFruits;
+          
+          if (result.vendorChartData) appData.vendorChartData = result.vendorChartData;
+          if (result.chartData) { chartData = result.chartData; localStorage.setItem('tft_cache_chart', JSON.stringify(chartData)); }
+          if (result.monthTotal !== undefined) mtdTotal = result.monthTotal;
+        }
+
+        localStorage.setItem('tft_cache_state', JSON.stringify(appData));
+        localStorage.setItem('tft_cache_total', mtdTotal);
+        renderAll();
+      } catch (e) { alert('Network Sync Error. Please check connection.'); }
+    }
+
+    function formatINR(amt) { return Number(amt || 0).toLocaleString('en-IN'); }
+
+    function renderAll() {
+      const datalist = document.getElementById('vendorDatalist');
+      datalist.innerHTML = '';
+      
+      if (appData.uniqueVendors) {
+        appData.uniqueVendors.forEach(v => {
+          const opt = document.createElement('option'); opt.value = v;
+          datalist.appendChild(opt);
+        });
+      }
+
+      // ADDED BACK: Populate HTML datalist so autocomplete works properly
+      const fruitDatalist = document.getElementById('fruitDatalist');
+      if (fruitDatalist) {
+        fruitDatalist.innerHTML = '';
+        if (appData.uniqueFruits) {
+          appData.uniqueFruits.forEach(f => {
+            const opt = document.createElement('option'); opt.value = f;
+            fruitDatalist.appendChild(opt);
+          });
+        }
+      }
+
+      // ---- 1. Sale Render ----
+      let sHtml = '';
+      if (appData.sale) {
+        appData.sale.forEach(row => {
+          if (!row.Date) return; 
+          const rDate = new Date(row.Date);
+          const displayDate = rDate.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+          const timeStr = new Date(row.Timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute:'2-digit' });
+          const userEmailStr = row['User Email'] ? String(row['User Email']).toLowerCase() : '';
+          const isOwner = userEmailStr === currentUserEmail;
+          const rowUser = userEmailStr.split('@')[0] || 'Unknown';
+
+          sHtml += `
+            <div class="record-card sale-card">
+              <div class="amt-box"><span class="amt-lbl">Cash</span><span class="amt-val">₹${formatINR(row['Cash Amount'])}</span></div>
+              <div class="amt-box"><span class="amt-lbl">UPI</span><span class="amt-val">₹${formatINR(row['UPI Amount'])}</span></div>
+              <div class="amt-box"><span class="amt-lbl">Credit</span><span class="amt-val">₹${formatINR(row['Credit Amount'])}</span></div>
+              
+              <div class="action-col">
+                ${isOwner ? `<button class="action-btn edit-btn" onclick="editPrompt('${row['Row ID']}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button><button class="action-btn del-btn" onclick="deleteRow('${row['Row ID']}', 'sale')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : '<span style="font-size:10px; color:var(--text-muted);">Locked</span>'}
+              </div>
+              
+              <div class="amt-box"><span class="amt-lbl">Cheque</span><span class="amt-val">₹${formatINR(row['Cheque'])}</span></div>
+              <div class="amt-box"><span class="amt-lbl">Others</span><span class="amt-val">₹${formatINR(row['Others'])}</span></div>
+              <div class="amt-box amt-total"><span class="amt-lbl">Total</span><span class="amt-val">₹${formatINR(row['Total (Calculated)'])}</span></div>
+              <div class="record-meta">${displayDate} at ${timeStr} &bull; <span style="color: var(--primary-blue); font-weight: 500;">${rowUser}</span></div>
+            </div>`;
+        });
+      }
+      document.getElementById('data-list-body').innerHTML = sHtml || '<div style="text-align:center; padding:20px; color:var(--text-muted);">No records yet</div>';
+      if (hasMore.sale) document.getElementById('data-list-body').innerHTML += `<button class="load-more-btn" onclick="apiCall('loadMore', {target:'sale', offset: offsets.sale+10})">Load More Sales</button>`;
+      document.getElementById('month-calc').innerText = new Date().toLocaleString('en-US', { month: 'long' }) + ': ₹' + formatINR(mtdTotal);
+
+      // ---- 2. Payment Render ----
+      let pHtml = '';
+      if (appData.payment) {
+        appData.payment.forEach(row => {
+          if (!row.Date) return;
+          const rDate = new Date(row.Date);
+          const displayDate = rDate.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+          const timeStr = new Date(row.Timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute:'2-digit' });
+          const userEmailStr = row['User Email'] ? String(row['User Email']).toLowerCase() : '';
+          const isOwner = userEmailStr === currentUserEmail;
+          
+          const rowUser = userEmailStr.split('@')[0] || 'Unknown';
+          const shortUser = rowUser.length > 8 ? rowUser.substring(0, 8) + '..' : rowUser;
+          const pMode = row['Payment Mode'] === 'Bank Transfer' ? 'Transfer' : (row['Payment Mode'] || '-');
+
+          pHtml += `
+            <div class="record-card vendor-card">
+              <div class="record-meta" style="grid-column: 1 / span 3; text-align: left; margin: 0 0 6px 0; opacity: 1;">
+                ${displayDate} at ${timeStr} &bull; <span style="color: var(--primary-blue); font-weight: 500;">${shortUser}</span>
+              </div>
+              
+              <div class="action-col">
+                ${isOwner ? `<button class="action-btn edit-btn" onclick="editVendorPrompt('${row['Row ID']}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button><button class="action-btn del-btn" onclick="deleteRow('${row['Row ID']}', 'payment')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : '<span style="font-size:10px; color:var(--text-muted);">Locked</span>'}
+              </div>
+              
+              <div class="amt-box" style="grid-column: 1;"><span class="amt-lbl">Vendor</span><span class="amt-val" style="color:var(--primary-blue); font-weight:700;">${row['Vendor Name']}</span></div>
+              <div class="amt-box" style="grid-column: 2;"><span class="amt-lbl">Mode</span><span class="amt-val">${pMode}</span></div>
+              <div class="amt-box amt-total" style="grid-column: 3;"><span class="amt-lbl">Amount</span><span class="amt-val" style="color:var(--danger-red); font-size:15px;">₹${formatINR(row['Amount'])}</span></div>
+            </div>`;
+        });
+      }
+      document.getElementById('vendor-list-body').innerHTML = pHtml || '<div style="text-align:center; padding:20px; color:var(--text-muted);">No records yet</div>';
+      if (hasMore.payment) document.getElementById('vendor-list-body').innerHTML += `<button class="load-more-btn" onclick="apiCall('loadMore', {target:'payment', offset: offsets.payment+10})">Load More Payments</button>`;
+
+      let vendorMonthTotalAmt = 0;
+      const now = new Date();
+      const currMYStr = now.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+      if (appData.vendorChartData && appData.vendorChartData[currMYStr]) {
+        vendorMonthTotalAmt = appData.vendorChartData[currMYStr].total;
+      }
+      document.getElementById('vendor-month-calc').innerText = now.toLocaleString('en-US', { month: 'long' }) + ': ₹' + formatINR(vendorMonthTotalAmt);
+
+
+      // ---- 3. Receipt Grouped Render with Edit & Delete Controls ----
+      let rHtml = '';
+      if (appData.receipt && appData.receipt.length > 0) {
+        const groupedReceipts = {};
+        const dateOrder = [];
+
+        appData.receipt.forEach(row => {
+          if (!row.Date) return;
+          const dateStr = toYMD(row.Date);
+          
+          if (!groupedReceipts[dateStr]) {
+            groupedReceipts[dateStr] = { dateObj: new Date(row.Date), rawDateStr: row.Date, totalCarriage: 0, vendors: [], fruitTotals: {} };
+            dateOrder.push(dateStr);
+          }
+          
+          const vName = row['Vendor Name'] || 'Unknown';
+          let vObj = groupedReceipts[dateStr].vendors.find(v => v.name === vName);
+          if (!vObj) {
+            vObj = { name: vName, carriage: 0, fruits: [] };
+            groupedReceipts[dateStr].vendors.push(vObj);
+          }
+
+          const carriage = Number(row['Carriage Amount']) || 0;
+          vObj.carriage += carriage;
+          groupedReceipts[dateStr].totalCarriage += carriage;
+
+          const fName = row['Fruit Name'] || '-';
+          const fQty = Number(row['Quantity']) || 0;
+
+          vObj.fruits.push({
+            rowId: row['Row ID'],
+            name: fName,
+            qty: row['Quantity'] || ''
+          });
+
+          // Aggregate fruit totals for the compact daily summary
+          if (fName !== '-' && fQty > 0) {
+            groupedReceipts[dateStr].fruitTotals[fName] = (groupedReceipts[dateStr].fruitTotals[fName] || 0) + fQty;
+          }
+        });
+
+        dateOrder.sort((a,b) => new Date(b) - new Date(a));
+
+        dateOrder.forEach(dateStr => {
+          const gDate = groupedReceipts[dateStr];
+          const displayDate = gDate.dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+          
+          rHtml += `<div style="border-bottom: 2px solid var(--border-color); padding-bottom: 12px; margin-bottom: 12px;">`;
+          
+          // Date Header with Date-level Edit & Delete
+          rHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                      <div>
+                        <span style="font-weight:700; font-size:14px; margin-right: 8px;">${displayDate}</span>
+                        <span style="font-weight:700; color:var(--primary-blue); font-size:13px;">Total: ₹${formatINR(gDate.totalCarriage)}</span>
+                      </div>
+                      <div style="display: flex; gap: 4px;">
+                        <button class="action-btn edit-btn" style="padding: 3px 6px;" onclick="editReceiptDatePrompt('${dateStr}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                        <button class="action-btn del-btn" style="padding: 3px 6px;" onclick="deleteReceiptByDate('${dateStr}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                      </div>
+                    </div>`;
+
+          // Compact Fruit Summary Table
+          const fTotalsKeys = Object.keys(gDate.fruitTotals);
+          if (fTotalsKeys.length > 0) {
+            let thHtml = '';
+            let tdHtml = '';
+            let fruitTotalSum = 0;
+            
+            fTotalsKeys.forEach(fKey => {
+              if (fKey.trim().toLowerCase() === 'daab') {
+                thHtml += `<th style="color: #10b981;">${fKey}</th>`;
+                tdHtml += `<td style="color: #10b981;">${gDate.fruitTotals[fKey]}</td>`;
+              } else {
+                thHtml += `<th>${fKey}</th>`;
+                tdHtml += `<td>${gDate.fruitTotals[fKey]}</td>`;
+                fruitTotalSum += gDate.fruitTotals[fKey];
+              }
+            });
+            
+            thHtml += `<th style="color: var(--danger-red);">Total</th>`;
+            tdHtml += `<td style="color: var(--danger-red); font-weight: 800;">${fruitTotalSum}</td>`;
+
+            rHtml += `<div style="overflow-x: auto; margin-bottom: 12px; border-radius: 4px;">
+                        <table class="compact-summary-table" style="margin: 0;">
+                          <thead><tr>${thHtml}</tr></thead>
+                          <tbody><tr>${tdHtml}</tr></tbody>
+                        </table>
+                      </div>`;
+          }
+          
+          rHtml += `<div class="table-wrapper"><table class="compact-table">
+                      <thead>
+                        <tr>
+                          <th>S NO</th><th>VENDOR</th><th>FRUIT</th><th>QTY</th><th>CARRIAGE</th><th>ACTIONS</th>
+                        </tr>
+                      </thead>
+                      <tbody>`;
+          
+          let sNo = 1;
+          gDate.vendors.forEach(vData => {
+            vData.fruits.forEach((f, idx) => {
+              rHtml += `<tr>`;
+              if (idx === 0) {
+                // First Row Edit updates all fields
+                rHtml += `<td>${sNo}</td>
+                          <td style="font-weight:600;">${vData.name}</td>
+                          <td>${f.name}</td>
+                          <td>${f.qty}</td>
+                          <td style="color:var(--danger-red);">${vData.carriage ? vData.carriage : ''}</td>
+                          <td>
+                            <div style="display:flex; gap:3px; justify-content:flex-end;">
+                              <button class="action-btn edit-btn" style="padding:2px 4px;" onclick="editReceiptFirstRowPrompt('${f.rowId}', '${dateStr}', '${vData.name}', ${vData.carriage}, '${f.name}', '${f.qty}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                              <button class="action-btn del-btn" style="padding:2px 4px;" onclick="deleteReceiptByVendor('${dateStr}', '${vData.name}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                            </div>
+                          </td>`;
+              } else {
+                // Subsequent Row Edit updates only fruit/qty
+                rHtml += `<td></td>
+                          <td></td>
+                          <td>${f.name}</td>
+                          <td>${f.qty}</td>
+                          <td></td>
+                          <td>
+                            <div style="display:flex; gap:3px; justify-content:flex-end;">
+                              <button class="action-btn edit-btn" style="padding:2px 4px;" onclick="editReceiptFruitPrompt('${f.rowId}', '${f.name}', '${f.qty}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                              <button class="action-btn del-btn" style="padding:2px 4px;" onclick="deleteReceiptRow('${f.rowId}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                            </div>
+                          </td>`;
+              }
+              rHtml += `</tr>`;
+            });
+            sNo++;
+          });
+
+          rHtml += `</tbody></table></div></div>`;
+        });
+      }
+
+      document.getElementById('receipt-list-body').innerHTML = rHtml || '<div style="text-align:center; padding:20px; color:var(--text-muted);">No bills yet</div>';
+      if (hasMore.receipt) document.getElementById('receipt-list-body').innerHTML += `<button class="load-more-btn" onclick="apiCall('loadMore', {target:'receipt', offset: offsets.receipt+5})">Load Older Bills</button>`;
+
+      if (dashboardOpen) renderChart();
+    }
+
+
+    /* ========================================================
+       RECEIPTS DYNAMIC BUILDER & EDIT LOGIC
+       ======================================================== */
+
+    function checkFruitRecs(element, vIndex, fIndex) {
+      const val = element.value.trim().toLowerCase();
+      const recContainer = document.getElementById(`fruit-recs-${vIndex}-${fIndex}`);
+      
+      if (!val) {
+        recContainer.style.display = 'none';
+        return;
+      }
+
+      const fruitsList = appData.uniqueFruits || [];
+      const exactMatch = fruitsList.find(f => f.toLowerCase() === val);
+      
+      if (exactMatch) {
+        recContainer.style.display = 'none';
+        return;
+      }
+
+      const matches = fruitsList.filter(f => f.toLowerCase().includes(val));
+      
+      if (matches.length > 0) {
+        recContainer.className = 'recs-container warning';
+        let pillsHtml = `<div class="recs-title warning">Similar names found: Did you mean to select one of these?</div>`;
+        matches.slice(0, 6).forEach(m => {
+          pillsHtml += `<span class="rec-pill" onclick="selectFruitRec('${m.replace(/'/g, "\\'")}', ${vIndex}, ${fIndex})">${m}</span>`;
+        });
+        recContainer.innerHTML = pillsHtml;
+        recContainer.style.display = 'block';
+      } else {
+        recContainer.className = 'recs-container info';
+        recContainer.innerHTML = `<div class="recs-title info">New Fruit: "${element.value.trim()}" does not exist and will be added.</div>`;
+        recContainer.style.display = 'block';
+      }
+    }
+
+    function selectFruitRec(fruitName, vIndex, fIndex) {
+      const input = document.getElementById(`fruit-input-${vIndex}-${fIndex}`);
+      if (input) {
+        input.value = fruitName;
+        receiptDraft[vIndex].fruits[fIndex].name = fruitName;
+      }
+      const recContainer = document.getElementById(`fruit-recs-${vIndex}-${fIndex}`);
+      if (recContainer) recContainer.style.display = 'none';
+    }
+
+    function checkModalFruitRecs(element) {
+      const val = element.value.trim().toLowerCase();
+      const recContainer = document.getElementById('editFruitRecsContainer');
+      
+      if (!val) {
+        recContainer.style.display = 'none';
+        return;
+      }
+
+      const fruitsList = appData.uniqueFruits || [];
+      const exactMatch = fruitsList.find(f => f.toLowerCase() === val);
+      
+      if (exactMatch) {
+        recContainer.style.display = 'none';
+        return;
+      }
+
+      const matches = fruitsList.filter(f => f.toLowerCase().includes(val));
+      
+      if (matches.length > 0) {
+        recContainer.className = 'recs-container warning';
+        let pillsHtml = `<div class="recs-title warning">Similar names found: Did you mean to select one of these?</div>`;
+        matches.slice(0, 6).forEach(m => {
+          pillsHtml += `<span class="rec-pill" onclick="selectModalFruitRec('${m.replace(/'/g, "\\'")}')">${m}</span>`;
+        });
+        recContainer.innerHTML = pillsHtml;
+        recContainer.style.display = 'block';
+      } else {
+        recContainer.className = 'recs-container info';
+        recContainer.innerHTML = `<div class="recs-title info">New Fruit: "${element.value.trim()}" does not exist and will be added.</div>`;
+        recContainer.style.display = 'block';
+      }
+    }
+
+    function selectModalFruitRec(fruitName) {
+      const input = document.getElementById('editReceiptFruitName');
+      if (input) input.value = fruitName;
+      const recContainer = document.getElementById('editFruitRecsContainer');
+      if (recContainer) recContainer.style.display = 'none';
+    }
+
+    function addReceiptVendorBlock() {
+      receiptDraft.push({ vendorName: '', carriage: 0, fruits: [{ name: '', qty: '' }] });
+      renderReceiptDraft();
+    }
+
+    function removeReceiptVendorBlock(vIndex) {
+      receiptDraft.splice(vIndex, 1);
+      renderReceiptDraft();
+    }
+
+    function addReceiptFruitRow(vIndex) {
+      receiptDraft[vIndex].fruits.push({ name: '', qty: '' });
+      renderReceiptDraft();
+    }
+
+    function removeReceiptFruitRow(vIndex, fIndex) {
+      receiptDraft[vIndex].fruits.splice(fIndex, 1);
+      renderReceiptDraft();
+    }
+
+    function updateReceiptDraft(type, vIndex, fIndex, element) {
+      if (type === 'vendorName') {
+        receiptDraft[vIndex].vendorName = element.value;
+        let vColor = 'var(--text-main)';
+        if (element.value && appData.uniqueVendors) {
+          const match = appData.uniqueVendors.find(uv => uv.toLowerCase() === element.value.toLowerCase().trim());
+          if (match) vColor = '#10b981'; 
+          else vColor = 'var(--danger-red)'; 
+        }
+        element.style.color = vColor;
+      }
+      if (type === 'carriage') {
+        receiptDraft[vIndex].carriage = element.value;
+        let total = 0;
+        receiptDraft.forEach(v => total += (Number(v.carriage) || 0));
+        document.getElementById('receiptTotalCarriage').innerText = formatINR(total);
+      }
+      if (type === 'fruitName') {
+        receiptDraft[vIndex].fruits[fIndex].name = element.value;
+      }
+      if (type === 'fruitQty') {
+        receiptDraft[vIndex].fruits[fIndex].qty = element.value;
+      }
+    }
+
+    function renderReceiptDraft() {
+      const container = document.getElementById('receiptVendorsContainer');
+      let html = '';
+      let totalCarriage = 0;
+
+      receiptDraft.forEach((vendor, vIndex) => {
+        totalCarriage += (Number(vendor.carriage) || 0);
+        
+        let vColor = 'var(--text-main)';
+        if (vendor.vendorName && appData.uniqueVendors) {
+          const match = appData.uniqueVendors.find(uv => uv.toLowerCase() === vendor.vendorName.toLowerCase().trim());
+          if (match) vColor = '#10b981'; 
+          else vColor = 'var(--danger-red)'; 
+        }
+
+        const gridCols = receiptDraft.length > 1 ? "1.5fr 1fr 32px" : "1.5fr 1fr";
+
+        html += `
+        <div class="receipt-vendor-block">
+          <div class="amounts-row" style="grid-template-columns: ${gridCols}; margin-bottom: 6px;">
+            <div class="input-group">
+              <label>Vendor ${vIndex + 1}</label>
+              <input type="text" list="vendorDatalist" value="${vendor.vendorName}" oninput="updateReceiptDraft('vendorName', ${vIndex}, null, this)" style="color: ${vColor}; font-weight: 600;" placeholder="Name...">
+            </div>
+            <div class="input-group">
+              <label>Carriage (₹)</label>
+              <input type="number" value="${vendor.carriage}" step="any" oninput="updateReceiptDraft('carriage', ${vIndex}, null, this)">
+            </div>
+            ${receiptDraft.length > 1 ? `<button onclick="removeReceiptVendorBlock(${vIndex})" style="background:none; border:none; color:var(--danger-red); cursor:pointer; font-size:24px; padding:0; height: 38px;">&times;</button>` : ''}
+          </div>
+        `;
+
+        vendor.fruits.forEach((fruit, fIndex) => {
+          html += `
+          <div class="receipt-fruit-row">
+            <div class="input-group"><label style="${fIndex > 0 ? 'display:none;' : ''}">Qty</label><input type="number" value="${fruit.qty}" step="any" oninput="updateReceiptDraft('fruitQty', ${vIndex}, ${fIndex}, this)"></div>
+            <div class="input-group"><label style="${fIndex > 0 ? 'display:none;' : ''}">Fruit</label><input type="text" id="fruit-input-${vIndex}-${fIndex}" value="${fruit.name}" oninput="updateReceiptDraft('fruitName', ${vIndex}, ${fIndex}, this); checkFruitRecs(this, ${vIndex}, ${fIndex})" autocomplete="off"></div>
+            ${fIndex === vendor.fruits.length - 1 ? `<button onclick="addReceiptFruitRow(${vIndex})" class="add-btn" style="height: 38px; font-size: 24px;">+</button>` : '<div></div>'}
+            ${fIndex > 0 ? `<button onclick="removeReceiptFruitRow(${vIndex},${fIndex})" class="action-btn del-btn" style="height: 38px; justify-content: center; padding: 0;">&times;</button>` : '<div></div>'}
+            <div id="fruit-recs-${vIndex}-${fIndex}" class="recs-container" style="display:none;"></div>
+          </div>`;
+        });
+
+        html += `
+        </div>`;
+      });
+
+      container.innerHTML = html;
+      document.getElementById('receiptTotalCarriage').innerText = formatINR(totalCarriage);
+    }
+
+    async function saveAllReceipts() {
+      const date = document.getElementById('receiptDate').value;
+      if (!date) return alert("Please select a date.");
+
+      let records = [];
+      let hasError = false;
+
+      receiptDraft.forEach(v => {
+        if (!v.vendorName) return;
+        
+        let correctedVendorName = v.vendorName.trim();
+        if (appData.uniqueVendors) {
+          const match = appData.uniqueVendors.find(uv => uv.toLowerCase() === correctedVendorName.toLowerCase());
+          if (match) correctedVendorName = match;
+        }
+
+        let isFirstFruitForVendor = true;
+
+        v.fruits.forEach(f => {
+          if (!f.qty && !f.name) return; 
+          if ((f.qty && !f.name) || (!f.qty && f.name)) {
+            alert(`Incomplete fruit entry under vendor: ${correctedVendorName}. Both Qty and Fruit are required.`);
+            hasError = true;
+            return;
+          }
+
+          records.push({
+            date: date,
+            vendorName: correctedVendorName,
+            fruitName: f.name.trim(),
+            quantity: f.qty,
+            carriageAmount: isFirstFruitForVendor ? (Number(v.carriage) || 0) : 0
+          });
+
+          isFirstFruitForVendor = false;
+        });
+      });
+
+      if (hasError) return;
+      if (records.length === 0) return alert("Please add at least one valid vendor and fruit row to save.");
+
+      document.getElementById('saveReceiptsBtn').innerText = 'Saving...';
+      await apiCall('addBulk', { target: 'receipt', records: records });
+      
+      receiptDraft = [{ vendorName: '', carriage: 0, fruits: [{ name: '', qty: '' }] }];
+      renderReceiptDraft();
+      document.getElementById('saveReceiptsBtn').innerText = 'Save All';
+    }
+
+    // --- RECEIPT EDIT & DELETE HANDLERS ---
+    function deleteReceiptRow(rowId) {
+      if (confirm("Delete this fruit entry?")) {
+        apiCall('delete', { target: 'receipt', deleteType: 'row', id: rowId });
+      }
+    }
+
+    function deleteReceiptByVendor(dateStr, vendorName) {
+      if (confirm(`Delete all entries for ${vendorName} on this date?`)) {
+        apiCall('delete', { target: 'receipt', deleteType: 'vendor', date: dateStr, vendorName: vendorName });
+      }
+    }
+
+    function deleteReceiptByDate(dateStr) {
+      if (confirm("Delete all bills for this entire date?")) {
+        apiCall('delete', { target: 'receipt', deleteType: 'date', date: dateStr });
+      }
+    }
+
+    function editReceiptFirstRowPrompt(rowId, dateStr, vendorName, currentCarriage, fruitName, currentQty) {
+      activeReceiptEdit = { type: 'first_row', id: rowId, date: dateStr, oldVendor: vendorName };
+      document.getElementById('receiptEditModalTitle').innerText = 'Edit Entry';
+      document.getElementById('editReceiptDateGroup').style.display = 'none';
+      
+      document.getElementById('editReceiptVendorGroup').style.display = 'flex';
+      document.getElementById('editReceiptCarriageGroup').style.display = 'flex';
+      document.getElementById('editReceiptFruitGroup').style.display = 'flex';
+      document.getElementById('editReceiptQtyGroup').style.display = 'flex';
+      
+      document.getElementById('editReceiptVendorName').value = vendorName;
+      document.getElementById('editReceiptCarriage').value = currentCarriage;
+      document.getElementById('editReceiptFruitName').value = fruitName;
+      document.getElementById('editReceiptFruitQty').value = currentQty;
+      
+      document.getElementById('receiptEditModalOverlay').style.display = 'flex';
+    }
+
+    function editReceiptFruitPrompt(rowId, currentName, currentQty) {
+      activeReceiptEdit = { type: 'subsequent_row', id: rowId };
+      document.getElementById('receiptEditModalTitle').innerText = 'Edit Fruit Entry';
+      document.getElementById('editReceiptDateGroup').style.display = 'none';
+      
+      document.getElementById('editReceiptVendorGroup').style.display = 'none';
+      document.getElementById('editReceiptCarriageGroup').style.display = 'none';
+      document.getElementById('editReceiptFruitGroup').style.display = 'flex';
+      document.getElementById('editReceiptQtyGroup').style.display = 'flex';
+      
+      document.getElementById('editReceiptFruitName').value = currentName;
+      document.getElementById('editReceiptFruitQty').value = currentQty;
+      
+      document.getElementById('receiptEditModalOverlay').style.display = 'flex';
+    }
+
+    function editReceiptDatePrompt(dateStr) {
+      activeReceiptEdit = { type: 'date', date: dateStr };
+      document.getElementById('receiptEditModalTitle').innerText = 'Edit Date';
+      
+      document.getElementById('editReceiptDateGroup').style.display = 'flex';
+      document.getElementById('editReceiptDateInput').value = dateStr;
+      
+      document.getElementById('editReceiptVendorGroup').style.display = 'none';
+      document.getElementById('editReceiptCarriageGroup').style.display = 'none';
+      document.getElementById('editReceiptFruitGroup').style.display = 'none';
+      document.getElementById('editReceiptQtyGroup').style.display = 'none';
+      
+      document.getElementById('receiptEditModalOverlay').style.display = 'flex';
+    }
+
+    function closeReceiptEditModal() {
+      document.getElementById('receiptEditModalOverlay').style.display = 'none';
+      document.getElementById('editFruitRecsContainer').style.display = 'none';
+      activeReceiptEdit = null;
+    }
+
+    async function submitReceiptEdit() {
+      if (!activeReceiptEdit) return;
+      const editInfo = activeReceiptEdit;
+      closeReceiptEditModal();
+      document.getElementById('receipt-list-body').innerHTML = '<div style="text-align: center; padding: 20px;">Updating...</div>';
+
+      if (editInfo.type === 'first_row') {
+        const newVendor = document.getElementById('editReceiptVendorName').value.trim();
+        const newCarriage = document.getElementById('editReceiptCarriage').value;
+        const newFruit = document.getElementById('editReceiptFruitName').value.trim();
+        const newQty = document.getElementById('editReceiptFruitQty').value;
+        
+        await apiCall('update', { target: 'receipt', id: editInfo.id, record: { vendorName: newVendor, carriageAmount: newCarriage, fruitName: newFruit, quantity: newQty } });
+        
+        if (newVendor !== editInfo.oldVendor && newVendor !== '') {
+          const matchingRows = appData.receipt.filter(r => toYMD(r.Date) === editInfo.date && r['Vendor Name'] === editInfo.oldVendor && r['Row ID'] !== editInfo.id);
+          for (let r of matchingRows) {
+            await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'update', target: 'receipt', id: r['Row ID'], user: currentUserEmail, record: { vendorName: newVendor } }) });
+          }
+          apiCall('get'); 
+        }
+      } else if (editInfo.type === 'subsequent_row') {
+        const newFruit = document.getElementById('editReceiptFruitName').value.trim();
+        const newQty = document.getElementById('editReceiptFruitQty').value;
+        await apiCall('update', { target: 'receipt', id: editInfo.id, record: { fruitName: newFruit, quantity: newQty } });
+      } else if (editInfo.type === 'date') {
+        const newDate = document.getElementById('editReceiptDateInput').value;
+        if (!newDate) return;
+        const matchingRows = appData.receipt.filter(r => toYMD(r.Date) === editInfo.date);
+        for (let r of matchingRows) {
+          await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'update', target: 'receipt', id: r['Row ID'], user: currentUserEmail, record: { date: newDate } }) });
+        }
+        apiCall('get');
+      }
+    }
+
+
+    /* ========================================================
+       EXISTING PAYMENT STAGING LOGIC
+       ======================================================== */
+
+    function stageVendorPayment() {
+      let v = document.getElementById('vendorNameInput').value.trim();
+      const m = document.getElementById('vendorPaymentMode').value;
+      const a = document.getElementById('vendorAmount').value;
+      const d = document.getElementById('vendorDate').value;
+      
+      if(!d) return alert("Select a date.");
+      if(!v) return alert("Enter a Vendor Name.");
+      if(!a || a <= 0) return alert("Enter a valid amount.");
+      
+      if (appData.uniqueVendors) {
+        const existingVendor = appData.uniqueVendors.find(uv => uv.toLowerCase() === v.toLowerCase());
+        if (existingVendor) v = existingVendor;
+      }
+
+      stagedVendorPayments.push({ date: d, vendorName: v, paymentMode: m, amount: a });
+      
+      document.getElementById('vendorNameInput').value = '';
+      document.getElementById('vendorAmount').value = 0;
+      
+      renderStagedPayments();
+    }
+
+    function removeStagedPayment(index) {
+      stagedVendorPayments.splice(index, 1);
+      renderStagedPayments();
+    }
+
+    function renderStagedPayments() {
+      const container = document.getElementById('stagedPaymentsContainer');
+      const list = document.getElementById('stagedPaymentsList');
+      
+      if (stagedVendorPayments.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      
+      container.style.display = 'block';
+      list.innerHTML = stagedVendorPayments.map((p, i) => `
+        <div style="display: flex; justify-content: space-between; background: var(--bg-color); padding: 10px 12px; border-radius: 8px; font-size: 13px; align-items: center; border: 1px solid var(--border-color);">
+          <div>
+            <strong style="color:var(--primary-blue);">${p.vendorName}</strong> <span style="color:var(--text-muted); font-size:11px;">(${p.paymentMode})</span><br>
+            <span style="color: var(--danger-red); font-weight: 700;">₹${formatINR(p.amount)}</span>
+          </div>
+          <button onclick="removeStagedPayment(${i})" style="background: none; border: none; color: var(--danger-red); font-size: 22px; cursor: pointer; padding: 0;">&times;</button>
+        </div>
+      `).join('');
+    }
+
+    async function saveAllVendorPayments() {
+      if(stagedVendorPayments.length === 0) return;
+      document.getElementById('saveBulkVendorBtn').innerText = 'Saving...';
+      await apiCall('addBulk', { target: 'payment', records: stagedVendorPayments });
+      stagedVendorPayments = [];
+      renderStagedPayments();
+      document.getElementById('saveBulkVendorBtn').innerText = 'Save All Payments';
+    }
+
+    /* ========================================================
+       EXISTING SALE LOGIC
+       ======================================================== */
+
+    async function saveEntry(target) {
+      if (target === 'sale') {
+        const d = document.getElementById('entryDate').value;
+        if(appData.sale.find(r => new Date(r.Date).toISOString().split('T')[0] === d)) return alert("Record for this date exists.");
+        document.getElementById('saveBtn').innerText = '...';
+        await apiCall('add', { target: 'sale', record: { date: d, credit: document.getElementById('credit').value, upi: document.getElementById('upi').value, cashCounted: document.getElementById('cashCounted').value, cheque: document.getElementById('cheque').value, others: document.getElementById('others').value } });
+        document.getElementById('saveBtn').innerText = '+';
+        ['credit','upi','cashCounted','cheque','others'].forEach(id => document.getElementById(id).value = 0);
+      } 
+    }
+
+    function editPrompt(id) {
+      const row = appData.sale.find(r => r['Row ID'] === id);
+      if(!row) return; activeEditId = id;
+      document.getElementById('editCredit').value = row['Credit Amount'] || 0;
+      document.getElementById('editUpi').value = row['UPI Amount'] || 0;
+      document.getElementById('editCashCounted').value = row['Cash Counted'] || 0;
+      document.getElementById('editCheque').value = row['Cheque'] || 0;
+      document.getElementById('editOthers').value = row['Others'] || 0;
+      document.getElementById('editModalOverlay').style.display = 'flex';
+    }
+
+    function editVendorPrompt(id) {
+      const row = appData.payment.find(r => r['Row ID'] === id);
+      if(!row) return; activeVendorEditId = id;
+      document.getElementById('editVendorDate').value = new Date(row.Date).toISOString().split('T')[0];
+      document.getElementById('editVendorNameInput').value = row['Vendor Name'] || '';
+      document.getElementById('editVendorMode').value = (row['Payment Mode'] === 'Bank Transfer') ? 'Transfer' : (row['Payment Mode'] || 'Cash');
+      document.getElementById('editVendorAmount').value = row['Amount'] || 0;
+      document.getElementById('vendorEditModalOverlay').style.display = 'flex';
+    }
+
+    function closeEditModal() { document.getElementById('editModalOverlay').style.display = 'none'; activeEditId = null; }
+    function closeVendorEditModal() { document.getElementById('vendorEditModalOverlay').style.display = 'none'; activeVendorEditId = null; }
+    
+    function submitEdit() {
+      if(!activeEditId) return; const targetId = activeEditId; closeEditModal();
+      document.getElementById('data-list-body').innerHTML = '<div style="text-align: center; padding: 20px;">Updating...</div>';
+      apiCall('update', { target: 'sale', id: targetId, record: { credit: document.getElementById('editCredit').value, upi: document.getElementById('editUpi').value, cashCounted: document.getElementById('editCashCounted').value, cheque: document.getElementById('editCheque').value, others: document.getElementById('editOthers').value } });
+    }
+
+    function submitVendorEdit() {
+      if(!activeVendorEditId) return; 
+      
+      let v = document.getElementById('editVendorNameInput').value.trim();
+      if(!v) return alert("Enter a Vendor Name.");
+      if (appData.uniqueVendors) {
+        const existingVendor = appData.uniqueVendors.find(uv => uv.toLowerCase() === v.toLowerCase());
+        if (existingVendor) v = existingVendor;
+      }
+
+      const targetId = activeVendorEditId; closeVendorEditModal();
+      document.getElementById('vendor-list-body').innerHTML = '<div style="text-align: center; padding: 20px;">Updating...</div>';
+      apiCall('update', { target: 'payment', id: targetId, record: { date: document.getElementById('editVendorDate').value, vendorName: v, paymentMode: document.getElementById('editVendorMode').value, amount: document.getElementById('editVendorAmount').value } });
+    }
+
+    function deleteRow(id, target) {
+      if(confirm("Are you sure you want to delete this record?")) apiCall('delete', { target: target, id: id });
+    }
+
+    let myChart = null;
+    let vChart = null;
+
+    const vendorColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#f43f5e', '#6366f1', '#84cc16'];
+
+    function renderChart() {
+      const textColor = document.documentElement.getAttribute('data-theme') === 'dark' ? '#f8fafc' : '#1e293b';
+      
+      if (currentTab === 'sale') {
+        if(vChart) vChart.destroy();
+        const ctx = document.getElementById('monthlyChart').getContext('2d');
+        const labels = Object.keys(chartData).sort((a, b) => chartData[a].timestamp - chartData[b].timestamp);
+        if(myChart) myChart.destroy();
+        myChart = new Chart(ctx, { 
+          type: 'bar', 
+          data: { 
+            labels: labels, 
+            datasets: [
+              { label: 'Cash', data: labels.map(l => chartData[l].cash), backgroundColor: '#10b981' },
+              { label: 'UPI', data: labels.map(l => chartData[l].upi), backgroundColor: '#3b82f6' },
+              { label: 'Credit', data: labels.map(l => chartData[l].credit), backgroundColor: '#8b5cf6' },
+              { label: 'Cheque', data: labels.map(l => chartData[l].cheque), backgroundColor: '#06b6d4' },
+              { label: 'Others', data: labels.map(l => chartData[l].others), backgroundColor: '#f59e0b' }
+            ]
+          }, 
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+              legend: { labels: { color: textColor } },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    let label = context.dataset.label || '';
+                    let value = context.raw || 0;
+                    let total = 0;
+                    
+                    context.chart.data.datasets.forEach(dataset => {
+                      total += dataset.data[context.dataIndex] || 0;
+                    });
+                    
+                    let percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                    return `${label}: ₹${formatINR(value)} (${percentage}%)`;
+                  },
+                  footer: function(tooltipItems) {
+                    let total = 0;
+                    tooltipItems[0].chart.data.datasets.forEach(dataset => {
+                      total += dataset.data[tooltipItems[0].dataIndex] || 0;
+                    });
+                    return 'Total: ₹' + formatINR(total);
+                  }
+                }
+              }
+            }, 
+            scales: { 
+              x: { stacked: true, ticks: { color: textColor } }, 
+              y: { stacked: true, ticks: { color: textColor } } 
+            } 
+          } 
+        });
+      } else {
+        if(myChart) myChart.destroy();
+        const vCtx = document.getElementById('vendorMonthlyChart').getContext('2d');
+        
+        const vLabels = Object.keys(appData.vendorChartData || {}).sort((a, b) => appData.vendorChartData[a].timestamp - appData.vendorChartData[b].timestamp);
+        
+        const allVendorsInChart = new Set();
+        vLabels.forEach(l => {
+          Object.keys(appData.vendorChartData[l].vendors).forEach(v => allVendorsInChart.add(v));
+        });
+        const vendorsArray = Array.from(allVendorsInChart);
+
+        const vDatasets = vendorsArray.map((vendor, index) => {
+          return {
+            label: vendor,
+            data: vLabels.map(l => appData.vendorChartData[l].vendors[vendor] || 0),
+            backgroundColor: vendorColors[index % vendorColors.length]
+          };
+        });
+
+        if(vChart) vChart.destroy();
+        vChart = new Chart(vCtx, {
+          type: 'bar',
+          data: {
+            labels: vLabels,
+            datasets: vDatasets
+          },
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+              legend: { labels: { color: textColor } },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    let label = context.dataset.label || '';
+                    let value = context.raw || 0;
+                    let total = 0;
+                    
+                    context.chart.data.datasets.forEach(dataset => {
+                      total += dataset.data[context.dataIndex] || 0;
+                    });
+                    
+                    let percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                    return `${label}: ₹${formatINR(value)} (${percentage}%)`;
+                  },
+                  footer: function(tooltipItems) {
+                    let total = 0;
+                    tooltipItems[0].chart.data.datasets.forEach(dataset => {
+                      total += dataset.data[tooltipItems[0].dataIndex] || 0;
+                    });
+                    return 'Total: ₹' + formatINR(total);
+                  }
+                }
+              }
+            }, 
+            scales: { 
+              x: { stacked: true, ticks: { color: textColor } }, 
+              y: { stacked: true, ticks: { color: textColor } } 
+            } 
+          }
+        });
+      }
+    }
+  </script>
+</body>
+</html>
