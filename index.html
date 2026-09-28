@@ -83,13 +83,13 @@
     .chart-wrapper { position: relative; min-height: 450px; height: 60vh; width: 100%; margin-top: 10px; }
 
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 10000; padding: 16px; box-sizing: border-box; }
-    .modal-container { width: 100%; max-width: 400px; padding: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); }
+    .modal-container { width: 100%; max-width: 400px; padding: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); border-radius: 16px; }
     .modal-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .modal-action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+    .modal-action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
     .cancel-btn { background: var(--border-color); color: var(--text-main); border: none; border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer; text-align: center; }
     .save-btn { background: var(--primary-blue); color: white; border: none; border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer; text-align: center; }
 
-    /* Receipt Build UI - Compacted */
+    /* Receipt Build UI */
     .receipt-vendor-block { border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-bottom: 10px; background: var(--card-bg); }
     .receipt-fruit-row { display: grid; grid-template-columns: 1fr 2fr 38px 38px; gap: 6px; align-items: end; margin-top: 6px; }
 
@@ -139,7 +139,7 @@
     <div class="card" style="text-align: center; padding: 30px;">
       <h2>TFT 11</h2>
       <p style="color: var(--text-muted); margin-bottom: 20px;">Please sign in to continue</p>
-      <div id="g_id_onload" data-client_id="565144125438-lh0h5bca42a0c5qqgsr95t5dmdi6c4tk.apps.googleusercontent.com" data-context="signin" data-ux_mode="popup" data-callback="handleCredentialResponse" data-auto_prompt="false"></div>
+      <div id="g_id_onload" data-client_id="655668295950-mr71s07boak5mne39ujqiaobob0kdvau.apps.googleusercontent.com" data-context="signin" data-ux_mode="popup" data-callback="handleCredentialResponse" data-auto_prompt="false"></div>
       <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
     </div>
   </div>
@@ -312,6 +312,26 @@
     </div>
   </nav>
 
+  <!-- CUSTOM ALERTS & CONFIRM MODALS -->
+  <div id="customAlertOverlay" class="modal-overlay" style="z-index: 10001;">
+    <div class="card modal-container" style="text-align: center; max-width: 320px;">
+      <h3 id="customAlertTitle" style="margin-bottom: 10px;">Alert</h3>
+      <p id="customAlertMessage" style="color: var(--text-muted); margin-bottom: 24px; font-size: 14px; line-height: 1.4;"></p>
+      <button class="save-btn" style="width: 100%;" onclick="closeCustomAlert()">OK</button>
+    </div>
+  </div>
+
+  <div id="customConfirmOverlay" class="modal-overlay" style="z-index: 10001;">
+    <div class="card modal-container" style="text-align: center; max-width: 320px;">
+      <h3 id="customConfirmTitle" style="margin-bottom: 10px;">Confirm</h3>
+      <p id="customConfirmMessage" style="color: var(--text-muted); margin-bottom: 24px; font-size: 14px; line-height: 1.4;"></p>
+      <div class="modal-action-row" style="margin-top: 0;">
+        <button class="cancel-btn" onclick="closeCustomConfirm()">Cancel</button>
+        <button class="save-btn" id="customConfirmBtn" onclick="executeConfirm()" style="background: var(--danger-red);">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Sales Edit Modal -->
   <div id="editModalOverlay" class="modal-overlay">
     <div class="card modal-container">
@@ -338,7 +358,7 @@
         <div class="input-group"><label>Date</label><input type="date" id="editVendorDate"></div>
         <div class="input-group">
           <label>Vendor Name</label>
-          <input type="text" id="editVendorNameInput" list="editVendorDatalist" autocomplete="off">
+          <input type="text" id="editVendorNameInput" list="vendorDatalist" autocomplete="off">
         </div>
         <div class="input-group">
           <label>Payment Mode</label>
@@ -383,9 +403,39 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbzNf85wbWkWuVs9FvAZmeCis9Yp94Qcp6SLSjxk1xvKqQp3yPEIj0TNkJ-bgBf-kDF9/exec"; 
+    const API_URL = "https://script.google.com/macros/s/AKfycbyt1d1zgoSl1GhdzT0EMFOfTa-9qUofd7AHI4yi7PsGVoxC4W_MeZ8aT9KR5hOYrEWbWg/exec"; 
 
-    // Helper to safely extract local YYYY-MM-DD to avoid timezone shifting
+    // --- Custom Modal Handlers ---
+    let confirmAction = null;
+
+    function showAlert(title, message) {
+      document.getElementById('customAlertTitle').innerText = title;
+      document.getElementById('customAlertMessage').innerText = message;
+      document.getElementById('customAlertOverlay').style.display = 'flex';
+    }
+
+    function closeCustomAlert() {
+      document.getElementById('customAlertOverlay').style.display = 'none';
+    }
+
+    function showConfirm(title, message, actionCallback) {
+      document.getElementById('customConfirmTitle').innerText = title;
+      document.getElementById('customConfirmMessage').innerText = message;
+      confirmAction = actionCallback;
+      document.getElementById('customConfirmOverlay').style.display = 'flex';
+    }
+
+    function closeCustomConfirm() {
+      document.getElementById('customConfirmOverlay').style.display = 'none';
+      confirmAction = null;
+    }
+
+    function executeConfirm() {
+      if (confirmAction) confirmAction();
+      closeCustomConfirm();
+    }
+    // -----------------------------
+
     function toYMD(dateVal) {
       if (!dateVal) return null;
       const d = new Date(dateVal);
@@ -555,7 +605,7 @@
       try {
         const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
         const result = await response.json();
-        if (result.error) return alert("Database Error: " + result.error);
+        if (result.error) return showAlert("Database Error", result.error);
 
         if (action === 'loadMore') {
           if (data.target === 'sale') { appData.sale = [...appData.sale, ...(result.saleRows||[])]; offsets.sale += 10; hasMore.sale = result.saleHasMore; }
@@ -566,10 +616,7 @@
           if (result.paymentRows) { appData.payment = result.paymentRows; offsets.payment = 0; hasMore.payment = result.paymentHasMore; }
           if (result.receiptRows) { appData.receipt = result.receiptRows; offsets.receipt = 0; hasMore.receipt = result.receiptHasMore; }
           if (result.uniqueVendors) appData.uniqueVendors = result.uniqueVendors;
-          
-          // ADDED BACK: Assign uniqueFruits from backend to app state
           if (result.uniqueFruits) appData.uniqueFruits = result.uniqueFruits;
-          
           if (result.vendorChartData) appData.vendorChartData = result.vendorChartData;
           if (result.chartData) { chartData = result.chartData; localStorage.setItem('tft_cache_chart', JSON.stringify(chartData)); }
           if (result.monthTotal !== undefined) mtdTotal = result.monthTotal;
@@ -578,7 +625,7 @@
         localStorage.setItem('tft_cache_state', JSON.stringify(appData));
         localStorage.setItem('tft_cache_total', mtdTotal);
         renderAll();
-      } catch (e) { alert('Network Sync Error. Please check connection.'); }
+      } catch (e) { showAlert("Network Sync Error", "Please check your connection."); }
     }
 
     function formatINR(amt) { return Number(amt || 0).toLocaleString('en-IN'); }
@@ -594,7 +641,6 @@
         });
       }
 
-      // ADDED BACK: Populate HTML datalist so autocomplete works properly
       const fruitDatalist = document.getElementById('fruitDatalist');
       if (fruitDatalist) {
         fruitDatalist.innerHTML = '';
@@ -1014,10 +1060,11 @@
 
     async function saveAllReceipts() {
       const date = document.getElementById('receiptDate').value;
-      if (!date) return alert("Please select a date.");
+      if (!date) return showAlert("Validation Warning", "Please select a date.");
 
       let records = [];
       let hasError = false;
+      let errorMessage = null;
 
       receiptDraft.forEach(v => {
         if (!v.vendorName) return;
@@ -1033,7 +1080,7 @@
         v.fruits.forEach(f => {
           if (!f.qty && !f.name) return; 
           if ((f.qty && !f.name) || (!f.qty && f.name)) {
-            alert(`Incomplete fruit entry under vendor: ${correctedVendorName}. Both Qty and Fruit are required.`);
+            if (!errorMessage) errorMessage = `Incomplete fruit entry under vendor: ${correctedVendorName}. Both Qty and Fruit are required.`;
             hasError = true;
             return;
           }
@@ -1050,8 +1097,8 @@
         });
       });
 
-      if (hasError) return;
-      if (records.length === 0) return alert("Please add at least one valid vendor and fruit row to save.");
+      if (hasError) return showAlert("Incomplete Entry", errorMessage);
+      if (records.length === 0) return showAlert("Validation Warning", "Please add at least one valid vendor and fruit row to save.");
 
       document.getElementById('saveReceiptsBtn').innerText = 'Saving...';
       await apiCall('addBulk', { target: 'receipt', records: records });
@@ -1063,21 +1110,21 @@
 
     // --- RECEIPT EDIT & DELETE HANDLERS ---
     function deleteReceiptRow(rowId) {
-      if (confirm("Delete this fruit entry?")) {
+      showConfirm("Delete Fruit", "Delete this fruit entry?", () => {
         apiCall('delete', { target: 'receipt', deleteType: 'row', id: rowId });
-      }
+      });
     }
 
     function deleteReceiptByVendor(dateStr, vendorName) {
-      if (confirm(`Delete all entries for ${vendorName} on this date?`)) {
+      showConfirm("Delete Vendor", `Delete all entries for ${vendorName} on this date?`, () => {
         apiCall('delete', { target: 'receipt', deleteType: 'vendor', date: dateStr, vendorName: vendorName });
-      }
+      });
     }
 
     function deleteReceiptByDate(dateStr) {
-      if (confirm("Delete all bills for this entire date?")) {
+      showConfirm("Delete Bills", "Delete all bills for this entire date?", () => {
         apiCall('delete', { target: 'receipt', deleteType: 'date', date: dateStr });
-      }
+      });
     }
 
     function editReceiptFirstRowPrompt(rowId, dateStr, vendorName, currentCarriage, fruitName, currentQty) {
@@ -1182,9 +1229,9 @@
       const a = document.getElementById('vendorAmount').value;
       const d = document.getElementById('vendorDate').value;
       
-      if(!d) return alert("Select a date.");
-      if(!v) return alert("Enter a Vendor Name.");
-      if(!a || a <= 0) return alert("Enter a valid amount.");
+      if(!d) return showAlert("Missing Date", "Select a date.");
+      if(!v) return showAlert("Missing Information", "Enter a Vendor Name.");
+      if(!a || a <= 0) return showAlert("Invalid Amount", "Enter a valid amount.");
       
       if (appData.uniqueVendors) {
         const existingVendor = appData.uniqueVendors.find(uv => uv.toLowerCase() === v.toLowerCase());
@@ -1241,7 +1288,9 @@
     async function saveEntry(target) {
       if (target === 'sale') {
         const d = document.getElementById('entryDate').value;
-        if(appData.sale.find(r => new Date(r.Date).toISOString().split('T')[0] === d)) return alert("Record for this date exists.");
+        if(appData.sale.find(r => new Date(r.Date).toISOString().split('T')[0] === d)) {
+          return showAlert("Duplicate Entry", "A record for this date already exists.");
+        }
         document.getElementById('saveBtn').innerText = '...';
         await apiCall('add', { target: 'sale', record: { date: d, credit: document.getElementById('credit').value, upi: document.getElementById('upi').value, cashCounted: document.getElementById('cashCounted').value, cheque: document.getElementById('cheque').value, others: document.getElementById('others').value } });
         document.getElementById('saveBtn').innerText = '+';
@@ -1283,7 +1332,7 @@
       if(!activeVendorEditId) return; 
       
       let v = document.getElementById('editVendorNameInput').value.trim();
-      if(!v) return alert("Enter a Vendor Name.");
+      if(!v) return showAlert("Missing Information", "Enter a Vendor Name.");
       if (appData.uniqueVendors) {
         const existingVendor = appData.uniqueVendors.find(uv => uv.toLowerCase() === v.toLowerCase());
         if (existingVendor) v = existingVendor;
@@ -1295,7 +1344,9 @@
     }
 
     function deleteRow(id, target) {
-      if(confirm("Are you sure you want to delete this record?")) apiCall('delete', { target: target, id: id });
+      showConfirm("Delete Record", "Are you sure you want to delete this record?", () => {
+        apiCall('delete', { target: target, id: id });
+      });
     }
 
     let myChart = null;
