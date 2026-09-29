@@ -124,6 +124,10 @@
     .rec-pill:active { background-color: #f87171; }
     [data-theme="dark"] .rec-pill { background-color: #7f1d1d; color: #fca5a5; }
 
+    /* Daily Labor Display Bar */
+    .labor-bar { background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    [data-theme="dark"] .labor-bar { background: #0f172a; }
+
     body.privacy-mode .amt-val, body.privacy-mode td { filter: blur(6px); opacity: 0.6; }
     body.privacy-mode input[type="number"], body.privacy-mode select { filter: blur(6px); opacity: 0.6; pointer-events: none; }
     body.privacy-mode #month-calc, body.privacy-mode #vendor-month-calc, body.privacy-mode #dashMonthTotal, body.privacy-mode #receiptTotalCarriage { filter: blur(6px); opacity: 0.6; }
@@ -398,6 +402,21 @@
       <div class="modal-action-row">
         <button class="cancel-btn" onclick="closeReceiptEditModal()">Cancel</button>
         <button class="save-btn" onclick="submitReceiptEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Labor Rate Edit Modal -->
+  <div id="laborEditModalOverlay" class="modal-overlay">
+    <div class="card modal-container" style="max-width: 320px;">
+      <h3 style="margin-bottom: 14px;">Edit Labor Rate</h3>
+      <div class="input-group">
+        <label>Rate per fruit (₹)</label>
+        <input type="number" id="editLaborRateInput" step="any">
+      </div>
+      <div class="modal-action-row">
+        <button class="cancel-btn" onclick="closeLaborEditModal()">Cancel</button>
+        <button class="save-btn" onclick="submitLaborEdit()">Save</button>
       </div>
     </div>
   </div>
@@ -739,8 +758,12 @@
           const dateStr = toYMD(row.Date);
           
           if (!groupedReceipts[dateStr]) {
-            groupedReceipts[dateStr] = { dateObj: new Date(row.Date), rawDateStr: row.Date, totalCarriage: 0, vendors: [], fruitTotals: {} };
+            groupedReceipts[dateStr] = { dateObj: new Date(row.Date), rawDateStr: row.Date, totalCarriage: 0, vendors: [], fruitTotals: {}, laborRate: 5 };
             dateOrder.push(dateStr);
+          }
+
+          if (row['Labor Rate'] !== undefined && row['Labor Rate'] !== "") {
+            groupedReceipts[dateStr].laborRate = Number(row['Labor Rate']);
           }
           
           const vName = row['Vendor Name'] || 'Unknown';
@@ -763,7 +786,6 @@
             qty: row['Quantity'] || ''
           });
 
-          // Aggregate fruit totals for the compact daily summary
           if (fName !== '-' && fQty > 0) {
             groupedReceipts[dateStr].fruitTotals[fName] = (groupedReceipts[dateStr].fruitTotals[fName] || 0) + fQty;
           }
@@ -791,10 +813,11 @@
 
           // Compact Fruit Summary Table
           const fTotalsKeys = Object.keys(gDate.fruitTotals);
+          let fruitTotalSum = 0;
+
           if (fTotalsKeys.length > 0) {
             let thHtml = '';
             let tdHtml = '';
-            let fruitTotalSum = 0;
             
             fTotalsKeys.forEach(fKey => {
               if (fKey.trim().toLowerCase() === 'daab') {
@@ -817,6 +840,16 @@
                         </table>
                       </div>`;
           }
+
+          // Daily Labor UI Section
+          let laborTotal = fruitTotalSum * gDate.laborRate;
+          rHtml += `<div class="labor-bar">
+                      <span style="font-size: 12px; font-weight: 600; color: var(--text-main);">Labor (@ ₹${gDate.laborRate}/fruit)</span>
+                      <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="color: var(--danger-red); font-weight: 700; font-size: 14px;">₹${formatINR(laborTotal)}</span>
+                        <button class="action-btn edit-btn" style="padding: 3px 6px;" onclick="editLaborRatePrompt('${dateStr}', ${gDate.laborRate})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                      </div>
+                    </div>`;
           
           rHtml += `<div class="table-wrapper"><table class="compact-table">
                       <thead>
@@ -1090,7 +1123,8 @@
             vendorName: correctedVendorName,
             fruitName: f.name.trim(),
             quantity: f.qty,
-            carriageAmount: isFirstFruitForVendor ? (Number(v.carriage) || 0) : 0
+            carriageAmount: isFirstFruitForVendor ? (Number(v.carriage) || 0) : 0,
+            laborRate: 5 // Default labor rate applied at creation
           });
 
           isFirstFruitForVendor = false;
@@ -1125,6 +1159,28 @@
       showConfirm("Delete Bills", "Delete all bills for this entire date?", () => {
         apiCall('delete', { target: 'receipt', deleteType: 'date', date: dateStr });
       });
+    }
+
+    // Labor Modal Specific Handlers
+    function editLaborRatePrompt(dateStr, currentRate) {
+      activeReceiptEdit = { type: 'labor', date: dateStr };
+      document.getElementById('editLaborRateInput').value = currentRate;
+      document.getElementById('laborEditModalOverlay').style.display = 'flex';
+    }
+
+    function closeLaborEditModal() {
+      document.getElementById('laborEditModalOverlay').style.display = 'none';
+      activeReceiptEdit = null;
+    }
+
+    async function submitLaborEdit() {
+      if (!activeReceiptEdit || activeReceiptEdit.type !== 'labor') return;
+      const newRate = document.getElementById('editLaborRateInput').value;
+      const dateStr = activeReceiptEdit.date;
+      closeLaborEditModal();
+      document.getElementById('receipt-list-body').innerHTML = '<div style="text-align: center; padding: 20px;">Updating...</div>';
+      
+      await apiCall('update', { target: 'receipt', updateType: 'laborRate', date: dateStr, record: { laborRate: newRate } });
     }
 
     function editReceiptFirstRowPrompt(rowId, dateStr, vendorName, currentCarriage, fruitName, currentQty) {
