@@ -594,7 +594,9 @@
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app-content').style.display = 'block';
       updateProfileUI(currentUserName, currentUserPic);
-      apiCall('get');
+      
+      // Force cache refresh immediately on login by passing { refreshRoles: true }
+      apiCall('get', { refreshRoles: true });
     }
 
     function updateProfileUI(name, pic) {
@@ -1136,7 +1138,7 @@
             <div class="input-group"><label style="${fIndex > 0 ? 'display:none;' : ''}">Qty</label><input type="number" value="${fruit.qty}" step="any" oninput="updateReceiptDraft('fruitQty', ${vIndex}, ${fIndex}, this)"></div>
             <div class="input-group"><label style="${fIndex > 0 ? 'display:none;' : ''}">Fruit</label><input type="text" id="fruit-input-${vIndex}-${fIndex}" value="${fruit.name}" oninput="updateReceiptDraft('fruitName', ${vIndex}, ${fIndex}, this); checkFruitRecs(this, ${vIndex}, ${fIndex})" autocomplete="off"></div>
             ${fIndex === vendor.fruits.length - 1 ? `<button onclick="addReceiptFruitRow(${vIndex})" class="add-btn" style="height: 38px; font-size: 24px;">+</button>` : '<div></div>'}
-            ${fIndex > 0 ? `<button onclick="removeReceiptFruitRow(${vIndex}, ${fIndex})" class="action-btn del-btn" style="height: 38px; justify-content: center; padding: 0;">&times;</button>` : '<div></div>'}
+            ${fIndex > 0 ? `<button onclick="removeReceiptFruitRow(${vIndex},${fIndex})" class="action-btn del-btn" style="height: 38px; justify-content: center; padding: 0;">&times;</button>` : '<div></div>'}
             <div id="fruit-recs-${vIndex}-${fIndex}" class="recs-container" style="display:none;"></div>
           </div>`;
         });
