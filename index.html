@@ -167,7 +167,7 @@
 
     <!-- TAB 1: SALE -->
     <div id="sale-section">
-      <div class="card">
+      <div class="card" id="saleInputCard">
         <h3>Log Amounts</h3>
         <div class="log-layout">
           <div class="input-group">
@@ -198,7 +198,7 @@
 
     <!-- TAB 2: VENDOR PAYMENTS -->
     <div id="vendor-section" style="display: none;">
-      <div class="card">
+      <div class="card" id="vendorInputCard">
         <h3>Log Payment</h3>
         <div class="log-layout">
           <div class="amounts-row" style="grid-template-columns: 1fr;">
@@ -248,7 +248,7 @@
 
     <!-- TAB 3: VENDOR RECEIPTS (BILLS) -->
     <div id="receipt-section" style="display: none;">
-      <div class="card">
+      <div class="card" id="receiptInputCard">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <h3 style="margin: 0;">Log Bill</h3>
           <span style="font-size: 14px; font-weight: 700; color: var(--primary-blue);">Total: ₹<span id="receiptTotalCarriage">0</span></span>
@@ -470,6 +470,7 @@
 
     let receiptDraft = [];
     let activeReceiptEdit = null;
+    let userRole = localStorage.getItem('tft_user_role') || 'None'; // Role initialization
 
     try {
       const cData = localStorage.getItem('tft_cache_state');
@@ -495,6 +496,20 @@
     let currentUserEmail = localStorage.getItem('tft_user_email') || "";
     let currentUserName = localStorage.getItem('tft_user_name') || "";
     let currentUserPic = localStorage.getItem('tft_user_pic') || "";
+
+    // --- DYNAMIC ROLE UI CONTROLLER ---
+    function applyRoleUI() {
+      const isAdmin = userRole === 'Admin';
+      const isEmployee = userRole === 'Employee';
+
+      // 1. Dashboard is strictly for Admin
+      document.getElementById('fabMenu').style.display = isAdmin ? 'flex' : 'none';
+
+      // 2. Hide/Show Input Sections based on role
+      document.getElementById('saleInputCard').style.display = isAdmin ? 'block' : 'none';
+      document.getElementById('vendorInputCard').style.display = isAdmin ? 'block' : 'none';
+      document.getElementById('receiptInputCard').style.display = (isAdmin || isEmployee) ? 'block' : 'none';
+    }
 
     function applyTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
@@ -544,6 +559,7 @@
         document.getElementById('app-content').style.display = 'block';
         updateProfileUI(currentUserName, currentUserPic);
         
+        applyRoleUI(); // Apply cached roles instantly
         if (appData.sale && appData.sale.length > 0) renderAll();
         else document.getElementById('data-list-body').innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading data...</div>';
         
@@ -582,10 +598,11 @@
       document.getElementById('vendor-section').style.display = tab === 'vendor' ? 'block' : 'none';
       document.getElementById('receipt-section').style.display = tab === 'receipt' ? 'block' : 'none';
       
-      document.getElementById('fabMenu').style.display = tab === 'receipt' ? 'none' : 'flex'; 
+      document.getElementById('fabMenu').style.display = (tab === 'receipt' || userRole !== 'Admin') ? 'none' : 'flex'; 
     }
 
     function toggleDashboard() {
+      if (userRole !== 'Admin') return; // Double protection
       dashboardOpen = !dashboardOpen;
       if (dashboardOpen) {
         document.getElementById('sale-section').style.display = 'none';
@@ -624,7 +641,17 @@
       try {
         const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
         const result = await response.json();
-        if (result.error) return showAlert("Database Error", result.error);
+        if (result.error) {
+          if (result.error.includes('Access Denied')) logout(); // Force logout on auth rejection
+          return showAlert("Database Error", result.error);
+        }
+
+        // Cache role globally from API
+        if (result.userRole) {
+          userRole = result.userRole;
+          localStorage.setItem('tft_user_role', userRole);
+          applyRoleUI();
+        }
 
         if (action === 'loadMore') {
           if (data.target === 'sale') { appData.sale = [...appData.sale, ...(result.saleRows||[])]; offsets.sale += 10; hasMore.sale = result.saleHasMore; }
@@ -650,6 +677,12 @@
     function formatINR(amt) { return Number(amt || 0).toLocaleString('en-IN'); }
 
     function renderAll() {
+      const isAdmin = userRole === 'Admin';
+      const isEmployee = userRole === 'Employee';
+      const canEditSale = isAdmin;
+      const canEditPayment = isAdmin;
+      const canEditReceipt = isAdmin || isEmployee;
+
       const datalist = document.getElementById('vendorDatalist');
       datalist.innerHTML = '';
       
@@ -680,7 +713,6 @@
           const displayDate = rDate.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
           const timeStr = new Date(row.Timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute:'2-digit' });
           const userEmailStr = row['User Email'] ? String(row['User Email']).toLowerCase() : '';
-          const isOwner = userEmailStr === currentUserEmail;
           const rowUser = userEmailStr.split('@')[0] || 'Unknown';
 
           sHtml += `
@@ -690,7 +722,7 @@
               <div class="amt-box"><span class="amt-lbl">Credit</span><span class="amt-val">₹${formatINR(row['Credit Amount'])}</span></div>
               
               <div class="action-col">
-                ${isOwner ? `<button class="action-btn edit-btn" onclick="editPrompt('${row['Row ID']}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button><button class="action-btn del-btn" onclick="deleteRow('${row['Row ID']}', 'sale')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : '<span style="font-size:10px; color:var(--text-muted);">Locked</span>'}
+                ${canEditSale ? `<button class="action-btn edit-btn" onclick="editPrompt('${row['Row ID']}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button><button class="action-btn del-btn" onclick="deleteRow('${row['Row ID']}', 'sale')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : '<span style="font-size:10px; color:var(--text-muted);">View Only</span>'}
               </div>
               
               <div class="amt-box"><span class="amt-lbl">Cheque</span><span class="amt-val">₹${formatINR(row['Cheque'])}</span></div>
@@ -713,7 +745,6 @@
           const displayDate = rDate.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
           const timeStr = new Date(row.Timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute:'2-digit' });
           const userEmailStr = row['User Email'] ? String(row['User Email']).toLowerCase() : '';
-          const isOwner = userEmailStr === currentUserEmail;
           
           const rowUser = userEmailStr.split('@')[0] || 'Unknown';
           const shortUser = rowUser.length > 8 ? rowUser.substring(0, 8) + '..' : rowUser;
@@ -726,7 +757,7 @@
               </div>
               
               <div class="action-col">
-                ${isOwner ? `<button class="action-btn edit-btn" onclick="editVendorPrompt('${row['Row ID']}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button><button class="action-btn del-btn" onclick="deleteRow('${row['Row ID']}', 'payment')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : '<span style="font-size:10px; color:var(--text-muted);">Locked</span>'}
+                ${canEditPayment ? `<button class="action-btn edit-btn" onclick="editVendorPrompt('${row['Row ID']}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button><button class="action-btn del-btn" onclick="deleteRow('${row['Row ID']}', 'payment')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : '<span style="font-size:10px; color:var(--text-muted);">View Only</span>'}
               </div>
               
               <div class="amt-box" style="grid-column: 1;"><span class="amt-lbl">Vendor</span><span class="amt-val" style="color:var(--primary-blue); font-weight:700;">${row['Vendor Name']}</span></div>
@@ -805,10 +836,11 @@
                         <span style="font-weight:700; font-size:14px; margin-right: 8px;">${displayDate}</span>
                         <span style="font-weight:700; color:var(--primary-blue); font-size:13px;">Total: ₹${formatINR(gDate.totalCarriage)}</span>
                       </div>
+                      ${canEditReceipt ? `
                       <div style="display: flex; gap: 4px;">
                         <button class="action-btn edit-btn" style="padding: 3px 6px;" onclick="editReceiptDatePrompt('${dateStr}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
                         <button class="action-btn del-btn" style="padding: 3px 6px;" onclick="deleteReceiptByDate('${dateStr}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                      </div>
+                      </div>` : ''}
                     </div>`;
 
           // Compact Fruit Summary Table
@@ -847,7 +879,7 @@
                       <span style="font-size: 12px; font-weight: 600; color: var(--text-main);">Labor (@ ₹${gDate.laborRate}/fruit)</span>
                       <div style="display: flex; gap: 8px; align-items: center;">
                         <span style="color: var(--danger-red); font-weight: 700; font-size: 14px;">₹${formatINR(laborTotal)}</span>
-                        <button class="action-btn edit-btn" style="padding: 3px 6px;" onclick="editLaborRatePrompt('${dateStr}', ${gDate.laborRate})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                        ${canEditReceipt ? `<button class="action-btn edit-btn" style="padding: 3px 6px;" onclick="editLaborRatePrompt('${dateStr}', ${gDate.laborRate})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>` : ''}
                       </div>
                     </div>`;
           
@@ -864,30 +896,30 @@
             vData.fruits.forEach((f, idx) => {
               rHtml += `<tr>`;
               if (idx === 0) {
-                // First Row Edit updates all fields
                 rHtml += `<td>${sNo}</td>
                           <td style="font-weight:600;">${vData.name}</td>
                           <td>${f.name}</td>
                           <td>${f.qty}</td>
                           <td style="color:var(--danger-red);">${vData.carriage ? vData.carriage : ''}</td>
                           <td>
+                            ${canEditReceipt ? `
                             <div style="display:flex; gap:3px; justify-content:flex-end;">
                               <button class="action-btn edit-btn" style="padding:2px 4px;" onclick="editReceiptFirstRowPrompt('${f.rowId}', '${dateStr}', '${vData.name}', ${vData.carriage}, '${f.name}', '${f.qty}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
                               <button class="action-btn del-btn" style="padding:2px 4px;" onclick="deleteReceiptByVendor('${dateStr}', '${vData.name}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                            </div>
+                            </div>` : '<span style="font-size:10px; color:var(--text-muted);">View Only</span>'}
                           </td>`;
               } else {
-                // Subsequent Row Edit updates only fruit/qty
                 rHtml += `<td></td>
                           <td></td>
                           <td>${f.name}</td>
                           <td>${f.qty}</td>
                           <td></td>
                           <td>
+                            ${canEditReceipt ? `
                             <div style="display:flex; gap:3px; justify-content:flex-end;">
                               <button class="action-btn edit-btn" style="padding:2px 4px;" onclick="editReceiptFruitPrompt('${f.rowId}', '${f.name}', '${f.qty}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
                               <button class="action-btn del-btn" style="padding:2px 4px;" onclick="deleteReceiptRow('${f.rowId}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                            </div>
+                            </div>` : ''}
                           </td>`;
               }
               rHtml += `</tr>`;
