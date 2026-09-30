@@ -470,7 +470,14 @@
 
     let receiptDraft = [];
     let activeReceiptEdit = null;
-    let userRole = localStorage.getItem('tft_user_role') || 'None'; // Role initialization
+    
+    // Matrix initialized Role object
+    let userPerms = { roleName: 'None', sale: 'None', payment: 'None', receipt: 'None', dashboard: 'No' };
+    
+    try {
+      const storedPerms = localStorage.getItem('tft_user_perms');
+      if (storedPerms) userPerms = JSON.parse(storedPerms);
+    } catch(e) {}
 
     try {
       const cData = localStorage.getItem('tft_cache_state');
@@ -497,18 +504,20 @@
     let currentUserName = localStorage.getItem('tft_user_name') || "";
     let currentUserPic = localStorage.getItem('tft_user_pic') || "";
 
-    // --- DYNAMIC ROLE UI CONTROLLER ---
+    // --- DYNAMIC ROLE UI CONTROLLER (Matrix Driven) ---
     function applyRoleUI() {
-      const isAdmin = userRole === 'Admin';
-      const isEmployee = userRole === 'Employee';
+      // Top Level Dashboard
+      document.getElementById('fabMenu').style.display = userPerms.dashboard === 'Yes' ? 'flex' : 'none';
 
-      // 1. Dashboard is strictly for Admin
-      document.getElementById('fabMenu').style.display = isAdmin ? 'flex' : 'none';
+      // Hide/Show Input Sections based on Explicit Database Flags
+      document.getElementById('saleInputCard').style.display = userPerms.sale === 'Full' ? 'block' : 'none';
+      document.getElementById('vendorInputCard').style.display = userPerms.payment === 'Full' ? 'block' : 'none';
+      document.getElementById('receiptInputCard').style.display = userPerms.receipt === 'Full' ? 'block' : 'none';
 
-      // 2. Hide/Show Input Sections based on role
-      document.getElementById('saleInputCard').style.display = isAdmin ? 'block' : 'none';
-      document.getElementById('vendorInputCard').style.display = isAdmin ? 'block' : 'none';
-      document.getElementById('receiptInputCard').style.display = (isAdmin || isEmployee) ? 'block' : 'none';
+      // Hide bottom tabs if access is entirely denied
+      document.getElementById('nav-sale').style.display = userPerms.sale === 'None' ? 'none' : 'flex';
+      document.getElementById('nav-vendor').style.display = userPerms.payment === 'None' ? 'none' : 'flex';
+      document.getElementById('nav-receipt').style.display = userPerms.receipt === 'None' ? 'none' : 'flex';
     }
 
     function applyTheme(theme) {
@@ -559,7 +568,14 @@
         document.getElementById('app-content').style.display = 'block';
         updateProfileUI(currentUserName, currentUserPic);
         
-        applyRoleUI(); // Apply cached roles instantly
+        applyRoleUI(); 
+        
+        // Auto-select first accessible tab
+        if (userPerms.sale !== 'None') currentTab = 'sale';
+        else if (userPerms.payment !== 'None') currentTab = 'vendor';
+        else if (userPerms.receipt !== 'None') currentTab = 'receipt';
+        switchTab(currentTab);
+
         if (appData.sale && appData.sale.length > 0) renderAll();
         else document.getElementById('data-list-body').innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading data...</div>';
         
@@ -598,11 +614,11 @@
       document.getElementById('vendor-section').style.display = tab === 'vendor' ? 'block' : 'none';
       document.getElementById('receipt-section').style.display = tab === 'receipt' ? 'block' : 'none';
       
-      document.getElementById('fabMenu').style.display = (tab === 'receipt' || userRole !== 'Admin') ? 'none' : 'flex'; 
+      document.getElementById('fabMenu').style.display = (tab === 'receipt' || userPerms.dashboard !== 'Yes') ? 'none' : 'flex'; 
     }
 
     function toggleDashboard() {
-      if (userRole !== 'Admin') return; // Double protection
+      if (userPerms.dashboard !== 'Yes') return; // Gatekeeper logic
       dashboardOpen = !dashboardOpen;
       if (dashboardOpen) {
         document.getElementById('sale-section').style.display = 'none';
@@ -642,15 +658,26 @@
         const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
         const result = await response.json();
         if (result.error) {
-          if (result.error.includes('Access Denied')) logout(); // Force logout on auth rejection
+          if (result.error.includes('Access Denied')) {
+             showAlert("Access Denied", result.error);
+             setTimeout(logout, 2500); // Force out if completely revoked
+             return;
+          }
           return showAlert("Database Error", result.error);
         }
 
-        // Cache role globally from API
-        if (result.userRole) {
-          userRole = result.userRole;
-          localStorage.setItem('tft_user_role', userRole);
+        // Deep cache sheet permissions mapping
+        if (result.userPerms) {
+          userPerms = result.userPerms;
+          localStorage.setItem('tft_user_perms', JSON.stringify(userPerms));
           applyRoleUI();
+          
+          // Switch to first accessible tab on initial load if we were pointing to a denied tab
+          if (userPerms[currentTab] === 'None') {
+             if (userPerms.sale !== 'None') switchTab('sale');
+             else if (userPerms.payment !== 'None') switchTab('vendor');
+             else if (userPerms.receipt !== 'None') switchTab('receipt');
+          }
         }
 
         if (action === 'loadMore') {
@@ -677,11 +704,10 @@
     function formatINR(amt) { return Number(amt || 0).toLocaleString('en-IN'); }
 
     function renderAll() {
-      const isAdmin = userRole === 'Admin';
-      const isEmployee = userRole === 'Employee';
-      const canEditSale = isAdmin;
-      const canEditPayment = isAdmin;
-      const canEditReceipt = isAdmin || isEmployee;
+      // Enforce granular sheet rules inside render block
+      const canEditSale = userPerms.sale === 'Full';
+      const canEditPayment = userPerms.payment === 'Full';
+      const canEditReceipt = userPerms.receipt === 'Full';
 
       const datalist = document.getElementById('vendorDatalist');
       datalist.innerHTML = '';
@@ -1110,7 +1136,7 @@
             <div class="input-group"><label style="${fIndex > 0 ? 'display:none;' : ''}">Qty</label><input type="number" value="${fruit.qty}" step="any" oninput="updateReceiptDraft('fruitQty', ${vIndex}, ${fIndex}, this)"></div>
             <div class="input-group"><label style="${fIndex > 0 ? 'display:none;' : ''}">Fruit</label><input type="text" id="fruit-input-${vIndex}-${fIndex}" value="${fruit.name}" oninput="updateReceiptDraft('fruitName', ${vIndex}, ${fIndex}, this); checkFruitRecs(this, ${vIndex}, ${fIndex})" autocomplete="off"></div>
             ${fIndex === vendor.fruits.length - 1 ? `<button onclick="addReceiptFruitRow(${vIndex})" class="add-btn" style="height: 38px; font-size: 24px;">+</button>` : '<div></div>'}
-            ${fIndex > 0 ? `<button onclick="removeReceiptFruitRow(${vIndex},${fIndex})" class="action-btn del-btn" style="height: 38px; justify-content: center; padding: 0;">&times;</button>` : '<div></div>'}
+            ${fIndex > 0 ? `<button onclick="removeReceiptFruitRow(${vIndex}, ${fIndex})" class="action-btn del-btn" style="height: 38px; justify-content: center; padding: 0;">&times;</button>` : '<div></div>'}
             <div id="fruit-recs-${vIndex}-${fIndex}" class="recs-container" style="display:none;"></div>
           </div>`;
         });
@@ -1156,7 +1182,7 @@
             fruitName: f.name.trim(),
             quantity: f.qty,
             carriageAmount: isFirstFruitForVendor ? (Number(v.carriage) || 0) : 0,
-            laborRate: 5 // Default labor rate applied at creation
+            laborRate: 5 
           });
 
           isFirstFruitForVendor = false;
