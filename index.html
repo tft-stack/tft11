@@ -265,7 +265,7 @@
 
         <!-- Compact Side-by-Side Action Buttons -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
-          <button class="load-more-btn" style="margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="addReceiptVendorBlock()">
+          <button class="load-more-btn" style="margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="addReceiptVendorBlockAndFocus()">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg> Vendor
           </button>
           <button class="add-btn" style="margin: 0; font-size: 15px; background: #10b981; display: flex; align-items: center; justify-content: center; gap: 6px;" id="saveReceiptsBtn" onclick="saveAllReceipts()">
@@ -1117,6 +1117,30 @@
       }
     }
 
+    function addReceiptVendorBlockAndFocus() {
+      addReceiptVendorBlock();
+      setTimeout(() => {
+        const newVIndex = receiptDraft.length - 1;
+        const newVendorInput = document.getElementById(`vendor-input-${newVIndex}`);
+        if (newVendorInput) {
+           newVendorInput.focus();
+           newVendorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    }
+
+    function addReceiptFruitRowAndFocus(vIndex) {
+      addReceiptFruitRow(vIndex);
+      setTimeout(() => {
+        const newFIndex = receiptDraft[vIndex].fruits.length - 1;
+        const newFruitInput = document.getElementById(`fruit-input-${vIndex}-${newFIndex}`);
+        if (newFruitInput) {
+           newFruitInput.focus();
+           newFruitInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    }
+
     function renderReceiptDraft() {
       const container = document.getElementById('receiptVendorsContainer');
       let html = '';
@@ -1132,36 +1156,55 @@
           else vColor = 'var(--danger-red)'; 
         }
 
-        const gridCols = receiptDraft.length > 1 ? "1.5fr 1fr 32px" : "1.5fr 1fr";
-
+        html += `<div class="receipt-vendor-block" style="padding: 8px; margin-bottom: 12px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">`;
+        
+        // Compact Header Row (Only shown once per vendor block)
         html += `
-        <div class="receipt-vendor-block">
-          <div class="amounts-row" style="grid-template-columns: ${gridCols}; margin-bottom: 6px;">
-            <div class="input-group">
-              <label>Vendor ${vIndex + 1}</label>
-              <input type="text" list="vendorDatalist" value="${vendor.vendorName}" oninput="updateReceiptDraft('vendorName', ${vIndex}, null, this)" style="color: ${vColor}; font-weight: 600;" placeholder="Name...">
-            </div>
-            <div class="input-group">
-              <label>Carriage (₹)</label>
-              <input type="number" value="${vendor.carriage}" step="any" oninput="updateReceiptDraft('carriage', ${vIndex}, null, this)">
-            </div>
-            ${receiptDraft.length > 1 ? `<button onclick="removeReceiptVendorBlock(${vIndex})" style="background:none; border:none; color:var(--danger-red); cursor:pointer; font-size:24px; padding:0; height: 38px;">&times;</button>` : ''}
+          <div style="display: grid; grid-template-columns: 1.2fr 0.7fr 1fr 0.9fr auto; gap: 4px; margin-bottom: 6px; font-size: 10px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; text-align: center;">
+            <div style="text-align: left;">Name</div>
+            <div>Qty</div>
+            <div>Fruit</div>
+            <div>Carriage</div>
+            <div style="width: 34px;"></div>
           </div>
         `;
 
         vendor.fruits.forEach((fruit, fIndex) => {
+          let isFirst = fIndex === 0;
+          
           html += `
-          <div class="receipt-fruit-row">
-            <div class="input-group"><label style="${fIndex > 0 ? 'display:none;' : ''}">Qty</label><input type="number" value="${fruit.qty}" step="any" oninput="updateReceiptDraft('fruitQty', ${vIndex}, ${fIndex}, this)"></div>
-            <div class="input-group"><label style="${fIndex > 0 ? 'display:none;' : ''}">Fruit</label><input type="text" id="fruit-input-${vIndex}-${fIndex}" value="${fruit.name}" oninput="updateReceiptDraft('fruitName', ${vIndex}, ${fIndex}, this); checkFruitRecs(this, ${vIndex}, ${fIndex})" autocomplete="off"></div>
-            ${fIndex === vendor.fruits.length - 1 ? `<button onclick="addReceiptFruitRow(${vIndex})" class="add-btn" style="height: 38px; font-size: 24px;">+</button>` : '<div></div>'}
-            ${fIndex > 0 ? `<button onclick="removeReceiptFruitRow(${vIndex},${fIndex})" class="action-btn del-btn" style="height: 38px; justify-content: center; padding: 0;">&times;</button>` : '<div></div>'}
-            <div id="fruit-recs-${vIndex}-${fIndex}" class="recs-container" style="display:none;"></div>
-          </div>`;
+          <div style="display: grid; grid-template-columns: 1.2fr 0.7fr 1fr 0.9fr auto; gap: 4px; align-items: center; margin-bottom: 6px;">
+             
+             <!-- Vendor Name -->
+             ${isFirst ? `
+               <input type="text" id="vendor-input-${vIndex}" list="vendorDatalist" value="${vendor.vendorName}" placeholder="Name" oninput="updateReceiptDraft('vendorName', ${vIndex}, null, this)" style="width: 100\%; padding: 10px 4px; font-size: 13px; margin: 0; color: ${vColor}; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);">
+             ` : `<div></div>`}
+             
+             <!-- Qty -->
+             <input type="number" id="qty-input-${vIndex}-${fIndex}" value="${fruit.qty}" step="any" placeholder="Qty" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('fruitQty', ${vIndex}, ${fIndex}, this)">
+             
+             <!-- Fruit Name -->
+             <input type="text" id="fruit-input-${vIndex}-${fIndex}" list="fruitDatalist" value="${fruit.name}" placeholder="Fruit" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('fruitName', ${vIndex}, ${fIndex}, this); checkFruitRecs(this, ${vIndex}, ${fIndex})" autocomplete="off">
+             
+             <!-- Carriage -->
+             ${isFirst ? `
+               <input type="number" value="${vendor.carriage === 0 && !vendor.vendorName ? '' : vendor.carriage}" step="any" placeholder="₹" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('carriage', ${vIndex}, null, this)">
+             ` : `<div></div>`}
+             
+             <!-- Action Buttons -->
+             <div style="display: flex; gap: 4px; justify-content: flex-end;">
+               ${fIndex > 0 ? `<button onclick="removeReceiptFruitRow(${vIndex},${fIndex})" class="action-btn del-btn" style="height: 34px; width: 34px; padding: 0; border-radius: 6px; display:flex; align-items:center; justify-content:center; border: 1px solid var(--danger-red); background: var(--bg-color); margin: 0; font-size: 16px;">&times;</button>` : ''}
+               
+               ${isFirst && receiptDraft.length > 1 && vendor.fruits.length === 1 ? `<button onclick="removeReceiptVendorBlock(${vIndex})" class="action-btn del-btn" style="height: 34px; width: 34px; padding: 0; border-radius: 6px; display:flex; align-items:center; justify-content:center; border: 1px solid var(--danger-red); background: var(--bg-color); margin: 0; font-size: 16px;">&times;</button>` : ''}
+               
+               ${fIndex === vendor.fruits.length - 1 ? `<button onclick="addReceiptFruitRowAndFocus(${vIndex})" class="add-btn" style="height: 34px; width: 34px; font-size: 20px; border-radius: 6px; padding: 0; display:flex; align-items:center; justify-content:center; margin: 0;">+</button>` : ''}
+             </div>
+          </div>
+          <div id="fruit-recs-${vIndex}-${fIndex}" class="recs-container" style="display:none; grid-column: 1/-1;"></div>
+          `;
         });
 
-        html += `
-        </div>`;
+        html += `</div>`;
       });
 
       container.innerHTML = html;
