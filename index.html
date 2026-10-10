@@ -986,7 +986,38 @@
     /* ========================================================
        RECEIPTS DYNAMIC BUILDER & EDIT LOGIC
        ======================================================== */
+    function addReceiptVendorBlockAndFocus() {
+      addReceiptVendorBlock();
+      setTimeout(() => {
+        const newVIndex = receiptDraft.length - 1;
+        const newVendorInput = document.getElementById(`vendor-input-${newVIndex}`);
+        if (newVendorInput) {
+           newVendorInput.focus();
+           newVendorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    }
 
+    function addReceiptFruitRowAndFocus(vIndex) {
+      addReceiptFruitRow(vIndex);
+      setTimeout(() => {
+        const newFIndex = receiptDraft[vIndex].fruits.length - 1;
+        const newFruitInput = document.getElementById(`fruit-input-${vIndex}-${newFIndex}`);
+        if (newFruitInput) {
+           newFruitInput.focus();
+           newFruitInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    }
+
+    // Auto-focus QTY if user selects from the native device Datalist dropdown
+    function checkDatalistFocus(element, vIndex, fIndex) {
+      if (element.value && appData.uniqueFruits && appData.uniqueFruits.some(f => f.toLowerCase() === element.value.toLowerCase())) {
+        const qtyInput = document.getElementById(`qty-input-${vIndex}-${fIndex}`);
+        if (qtyInput) qtyInput.focus();
+      }
+    }
+    
     function checkFruitRecs(element, vIndex, fIndex) {
       const val = element.value.trim().toLowerCase();
       const recContainer = document.getElementById(`fruit-recs-${vIndex}-${fIndex}`);
@@ -1029,6 +1060,10 @@
       }
       const recContainer = document.getElementById(`fruit-recs-${vIndex}-${fIndex}`);
       if (recContainer) recContainer.style.display = 'none';
+      
+      // Auto-focus the corresponding QTY field
+      const qtyInput = document.getElementById(`qty-input-${vIndex}-${fIndex}`);
+      if (qtyInput) qtyInput.focus();
     }
 
     function checkModalFruitRecs(element) {
@@ -1160,11 +1195,11 @@
         
         // Compact Header Row (Only shown once per vendor block)
         html += `
-          <div style="display: grid; grid-template-columns: 1.2fr 0.7fr 1fr 0.9fr auto; gap: 4px; margin-bottom: 6px; font-size: 10px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; text-align: center;">
-            <div style="text-align: left;">Name</div>
-            <div>Qty</div>
-            <div>Fruit</div>
+          <div style="display: grid; grid-template-columns: 1.2fr 0.8fr 1fr 0.6fr auto; gap: 4px; margin-bottom: 6px; font-size: 10px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; text-align: center;">
+            <div style="text-align: left;">Vendor ${vIndex + 1}</div>
             <div>Carriage</div>
+            <div>Fruit</div>
+            <div>Qty</div>
             <div style="width: 34px;"></div>
           </div>
         `;
@@ -1173,23 +1208,23 @@
           let isFirst = fIndex === 0;
           
           html += `
-          <div style="display: grid; grid-template-columns: 1.2fr 0.7fr 1fr 0.9fr auto; gap: 4px; align-items: center; margin-bottom: 6px;">
+          <div style="display: grid; grid-template-columns: 1.2fr 0.8fr 1fr 0.6fr auto; gap: 4px; align-items: center; margin-bottom: 6px;">
              
              <!-- Vendor Name -->
              ${isFirst ? `
-               <input type="text" id="vendor-input-${vIndex}" list="vendorDatalist" value="${vendor.vendorName}" placeholder="Name" oninput="updateReceiptDraft('vendorName', ${vIndex}, null, this)" style="width: 100\%; padding: 10px 4px; font-size: 13px; margin: 0; color: ${vColor}; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);">
+               <input type="text" id="vendor-input-${vIndex}" list="vendorDatalist" value="${vendor.vendorName}" placeholder="Vendor ${vIndex + 1}" oninput="updateReceiptDraft('vendorName', ${vIndex}, null, this)" style="width: 100\%; padding: 10px 4px; font-size: 13px; margin: 0; color: ${vColor}; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);">
              ` : `<div></div>`}
-             
-             <!-- Qty -->
-             <input type="number" id="qty-input-${vIndex}-${fIndex}" value="${fruit.qty}" step="any" placeholder="Qty" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('fruitQty', ${vIndex}, ${fIndex}, this)">
-             
-             <!-- Fruit Name -->
-             <input type="text" id="fruit-input-${vIndex}-${fIndex}" list="fruitDatalist" value="${fruit.name}" placeholder="Fruit" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('fruitName', ${vIndex}, ${fIndex}, this); checkFruitRecs(this, ${vIndex}, ${fIndex})" autocomplete="off">
              
              <!-- Carriage -->
              ${isFirst ? `
                <input type="number" value="${vendor.carriage === 0 && !vendor.vendorName ? '' : vendor.carriage}" step="any" placeholder="₹" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('carriage', ${vIndex}, null, this)">
              ` : `<div></div>`}
+             
+             <!-- Fruit Name -->
+             <input type="text" id="fruit-input-${vIndex}-${fIndex}" list="fruitDatalist" value="${fruit.name}" placeholder="Fruit" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('fruitName', ${vIndex}, ${fIndex}, this); checkFruitRecs(this, ${vIndex}, ${fIndex})" onchange="checkDatalistFocus(this, ${vIndex}, ${fIndex})" autocomplete="off">
+             
+             <!-- Qty -->
+             <input type="number" id="qty-input-${vIndex}-${fIndex}" value="${fruit.qty}" step="any" placeholder="Qty" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('fruitQty', ${vIndex}, ${fIndex}, this)">
              
              <!-- Action Buttons -->
              <div style="display: flex; gap: 4px; justify-content: flex-end;">
