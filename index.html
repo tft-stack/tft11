@@ -1017,6 +1017,14 @@
         if (qtyInput) qtyInput.focus();
       }
     }
+
+    // Auto-focus CARRIAGE if user selects an existing Vendor from the Datalist
+    function checkVendorDatalistFocus(element, vIndex) {
+      if (element.value && appData.uniqueVendors && appData.uniqueVendors.some(v => v.toLowerCase() === element.value.toLowerCase())) {
+        const carriageInput = document.getElementById(`carriage-input-${vIndex}`);
+        if (carriageInput) carriageInput.focus();
+      }
+    }
     
     function checkFruitRecs(element, vIndex, fIndex) {
       const val = element.value.trim().toLowerCase();
@@ -1212,12 +1220,12 @@
              
              <!-- Vendor Name -->
              ${isFirst ? `
-               <input type="text" id="vendor-input-${vIndex}" list="vendorDatalist" value="${vendor.vendorName}" placeholder="Vendor ${vIndex + 1}" oninput="updateReceiptDraft('vendorName', ${vIndex}, null, this)" style="width: 100\%; padding: 10px 4px; font-size: 13px; margin: 0; color: ${vColor}; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);">
+               <input type="text" id="vendor-input-${vIndex}" list="vendorDatalist" value="${vendor.vendorName}" placeholder="Vendor ${vIndex + 1}" oninput="updateReceiptDraft('vendorName', ${vIndex}, null, this)" onchange="checkVendorDatalistFocus(this, ${vIndex})" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; color: ${vColor}; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);">
              ` : `<div></div>`}
              
              <!-- Carriage -->
              ${isFirst ? `
-               <input type="number" value="${vendor.carriage === 0 && !vendor.vendorName ? '' : vendor.carriage}" step="any" placeholder="₹" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('carriage', ${vIndex}, null, this)">
+               <input type="number" id="carriage-input-${vIndex}" value="${vendor.carriage === 0 && !vendor.vendorName ? '' : vendor.carriage}" step="any" placeholder="₹" style="width: 100%; padding: 10px 4px; font-size: 13px; margin: 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--input-bg);" oninput="updateReceiptDraft('carriage', ${vIndex}, null, this)">
              ` : `<div></div>`}
              
              <!-- Fruit Name -->
