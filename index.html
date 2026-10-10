@@ -187,8 +187,8 @@
 
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin: 0;">Recent Records</h3>
-          <span style="font-size: 14px; color: var(--text-muted); font-weight: 600;" id="month-calc"></span>
+          <h3 style="margin: 0; white-space: nowrap;">Recent Records</h3>
+          <div style="font-size: 14px; color: var(--text-muted); font-weight: 600; text-align: right;" id="month-calc"></div>
         </div>
         <div class="list-container" id="data-list-body">
           <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading data...</div>
@@ -238,7 +238,7 @@
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <h3 style="margin: 0;">Recent Payments</h3>
-          <div style="font-size: 14px; color: var(--text-muted); font-weight: 600; text-align: right;" id="month-calc"></div>
+          <span style="font-size: 14px; color: var(--text-muted); font-weight: 600;" id="vendor-month-calc"></span>
         </div>
         <div class="list-container" id="vendor-list-body">
           <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading data...</div>
@@ -390,7 +390,6 @@
         <div class="input-group" id="editReceiptVendorGroup"><label>Vendor</label><input type="text" id="editReceiptVendorName" list="vendorDatalist" autocomplete="off"></div>
         <div class="input-group" id="editReceiptCarriageGroup"><label>Carriage (₹)</label><input type="number" id="editReceiptCarriage" step="any"></div>
         
-        <!-- Modal Fruit Input with dynamic pill recommendations -->
         <div class="input-group" id="editReceiptFruitGroup" style="grid-column: 1 / -1;">
           <label>Fruit</label>
           <input type="text" id="editReceiptFruitName" list="fruitDatalist" autocomplete="off" oninput="checkModalFruitRecs(this)">
@@ -495,7 +494,6 @@
     let mtdTotal = localStorage.getItem('tft_cache_total') || 0;
     if (mtdTotal === "undefined" || mtdTotal === "null") mtdTotal = 0;
 
-    // --- NEW: Restore the cached row count to survive refreshes
     let mtdDaysCount = localStorage.getItem('tft_cache_days') || 0;
     if (mtdDaysCount === "undefined" || mtdDaysCount === "null") mtdDaysCount = 0;
 
@@ -599,7 +597,6 @@
       document.getElementById('app-content').style.display = 'block';
       updateProfileUI(currentUserName, currentUserPic);
       
-      // Force cache refresh immediately on login by passing { refreshRoles: true }
       apiCall('get', { refreshRoles: true });
     }
 
@@ -624,7 +621,7 @@
     }
 
     function toggleDashboard() {
-      if (userPerms.dashboard !== 'Yes') return; // Gatekeeper logic
+      if (userPerms.dashboard !== 'Yes') return; 
       dashboardOpen = !dashboardOpen;
       if (dashboardOpen) {
         document.getElementById('sale-section').style.display = 'none';
@@ -666,19 +663,17 @@
         if (result.error) {
           if (result.error.includes('Access Denied')) {
              showAlert("Access Denied", result.error);
-             setTimeout(logout, 2500); // Force out if completely revoked
+             setTimeout(logout, 2500); 
              return;
           }
           return showAlert("Database Error", result.error);
         }
 
-        // Deep cache sheet permissions mapping
         if (result.userPerms) {
           userPerms = result.userPerms;
           localStorage.setItem('tft_user_perms', JSON.stringify(userPerms));
           applyRoleUI();
           
-          // Switch to first accessible tab on initial load if we were pointing to a denied tab
           if (userPerms[currentTab] === 'None') {
              if (userPerms.sale !== 'None') switchTab('sale');
              else if (userPerms.payment !== 'None') switchTab('vendor');
@@ -694,19 +689,26 @@
           if (result.saleRows) { appData.sale = result.saleRows; offsets.sale = 0; hasMore.sale = result.saleHasMore; }
           if (result.paymentRows) { appData.payment = result.paymentRows; offsets.payment = 0; hasMore.payment = result.paymentHasMore; }
           if (result.receiptRows) { appData.receipt = result.receiptRows; offsets.receipt = 0; hasMore.receipt = result.receiptHasMore; }
-          if (result.uniqueVendors) appData.uniqueVendors = result.uniqueVendors;
-          if (result.uniqueFruits) appData.uniqueFruits = result.uniqueFruits;
+          
+          // Merge unique arrays so dropdowns don't lose historical data due to chunking
+          if (result.uniqueVendors) {
+             let combinedV = new Set([...(appData.uniqueVendors || []), ...result.uniqueVendors]);
+             appData.uniqueVendors = Array.from(combinedV).sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+          }
+          if (result.uniqueFruits) {
+             let combinedF = new Set([...(appData.uniqueFruits || []), ...result.uniqueFruits]);
+             appData.uniqueFruits = Array.from(combinedF).sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+          }
+          
           if (result.vendorChartData) appData.vendorChartData = result.vendorChartData;
           if (result.chartData) { chartData = result.chartData; localStorage.setItem('tft_cache_chart', JSON.stringify(chartData)); }
           
           if (result.monthTotal !== undefined) mtdTotal = result.monthTotal;
-          // --- NEW: Retrieve Row Days Count from API
           if (result.monthDaysCount !== undefined) mtdDaysCount = result.monthDaysCount;
         }
 
         localStorage.setItem('tft_cache_state', JSON.stringify(appData));
         localStorage.setItem('tft_cache_total', mtdTotal);
-        // --- NEW: Store row days count locally
         localStorage.setItem('tft_cache_days', mtdDaysCount);
         renderAll();
       } catch (e) { showAlert("Network Sync Error", "Please check your connection."); }
@@ -715,7 +717,6 @@
     function formatINR(amt) { return Number(amt || 0).toLocaleString('en-IN'); }
 
     function renderAll() {
-      // Enforce granular sheet rules inside render block
       const canEditSale = userPerms.sale === 'Full';
       const canEditPayment = userPerms.payment === 'Full';
       const canEditReceipt = userPerms.receipt === 'Full';
@@ -772,7 +773,6 @@
       document.getElementById('data-list-body').innerHTML = sHtml || '<div style="text-align:center; padding:20px; color:var(--text-muted);">No records yet</div>';
       if (hasMore.sale) document.getElementById('data-list-body').innerHTML += `<button class="load-more-btn" onclick="apiCall('loadMore', {target:'sale', offset: offsets.sale+10})">Load More Sales</button>`;
       
-      // --- NEW: Calculate and Display Monthly Average based on Row Count
       let avg = mtdDaysCount > 0 ? (mtdTotal / mtdDaysCount) : 0;
       document.getElementById('month-calc').innerHTML = `
         <div style="line-height: 1.2;">
@@ -842,7 +842,7 @@
             groupedReceipts[dateStr].laborRate = Number(row['Labor Rate']);
           }
           
-          const vName = row['Vendor Name'] || 'Unknown';
+          const vName = row['Vendor Name'] ? String(row['Vendor Name']).trim() : 'Unknown';
           let vObj = groupedReceipts[dateStr].vendors.find(v => v.name === vName);
           if (!vObj) {
             vObj = { name: vName, carriage: 0, fruits: [] };
@@ -853,7 +853,7 @@
           vObj.carriage += carriage;
           groupedReceipts[dateStr].totalCarriage += carriage;
 
-          const fName = row['Fruit Name'] || '-';
+          const fName = row['Fruit Name'] ? String(row['Fruit Name']).trim() : '-';
           const fQty = Number(row['Quantity']) || 0;
 
           vObj.fruits.push({
@@ -875,7 +875,6 @@
           
           rHtml += `<div style="border-bottom: 2px solid var(--border-color); padding-bottom: 12px; margin-bottom: 12px;">`;
           
-          // Date Header with Date-level Edit & Delete
           rHtml += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
                       <div>
                         <span style="font-weight:700; font-size:14px; margin-right: 8px;">${displayDate}</span>
@@ -888,7 +887,6 @@
                       </div>` : ''}
                     </div>`;
 
-          // Compact Fruit Summary Table
           const fTotalsKeys = Object.keys(gDate.fruitTotals);
           let fruitTotalSum = 0;
 
@@ -897,11 +895,12 @@
             let tdHtml = '';
             
             fTotalsKeys.forEach(fKey => {
-              if (fKey.trim().toLowerCase() === 'daab') {
-                thHtml += `<th style="color: #10b981;">${fKey}</th>`;
+              let safeKey = String(fKey).trim();
+              if (safeKey.toLowerCase() === 'daab') {
+                thHtml += `<th style="color: #10b981;">${safeKey}</th>`;
                 tdHtml += `<td style="color: #10b981;">${gDate.fruitTotals[fKey]}</td>`;
               } else {
-                thHtml += `<th>${fKey}</th>`;
+                thHtml += `<th>${safeKey}</th>`;
                 tdHtml += `<td>${gDate.fruitTotals[fKey]}</td>`;
                 fruitTotalSum += gDate.fruitTotals[fKey];
               }
@@ -918,7 +917,6 @@
                       </div>`;
           }
 
-          // Daily Labor UI Section
           let laborTotal = fruitTotalSum * gDate.laborRate;
           rHtml += `<div class="labor-bar">
                       <span style="font-size: 12px; font-weight: 600; color: var(--text-main);">Labor (@ ₹${gDate.laborRate}/fruit)</span>
@@ -949,8 +947,8 @@
                           <td>
                             ${canEditReceipt ? `
                             <div style="display:flex; gap:3px; justify-content:flex-end;">
-                              <button class="action-btn edit-btn" style="padding:2px 4px;" onclick="editReceiptFirstRowPrompt('${f.rowId}', '${dateStr}', '${vData.name}', ${vData.carriage}, '${f.name}', '${f.qty}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-                              <button class="action-btn del-btn" style="padding:2px 4px;" onclick="deleteReceiptByVendor('${dateStr}', '${vData.name}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                              <button class="action-btn edit-btn" style="padding:2px 4px;" onclick="editReceiptFirstRowPrompt('${f.rowId}', '${dateStr}', '${vData.name.replace(/'/g, "\\'")}', ${vData.carriage}, '${f.name.replace(/'/g, "\\'")}', '${f.qty}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                              <button class="action-btn del-btn" style="padding:2px 4px;" onclick="deleteReceiptByVendor('${dateStr}', '${vData.name.replace(/'/g, "\\'")}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                             </div>` : '<span style="font-size:10px; color:var(--text-muted);">View Only</span>'}
                           </td>`;
               } else {
@@ -962,7 +960,7 @@
                           <td>
                             ${canEditReceipt ? `
                             <div style="display:flex; gap:3px; justify-content:flex-end;">
-                              <button class="action-btn edit-btn" style="padding:2px 4px;" onclick="editReceiptFruitPrompt('${f.rowId}', '${f.name}', '${f.qty}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                              <button class="action-btn edit-btn" style="padding:2px 4px;" onclick="editReceiptFruitPrompt('${f.rowId}', '${f.name.replace(/'/g, "\\'")}', '${f.qty}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
                               <button class="action-btn del-btn" style="padding:2px 4px;" onclick="deleteReceiptRow('${f.rowId}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                             </div>` : ''}
                           </td>`;
@@ -986,6 +984,7 @@
     /* ========================================================
        RECEIPTS DYNAMIC BUILDER & EDIT LOGIC
        ======================================================== */
+
     function addReceiptVendorBlockAndFocus() {
       addReceiptVendorBlock();
       setTimeout(() => {
@@ -1010,7 +1009,6 @@
       }, 50);
     }
 
-    // Auto-focus QTY if user selects from the native device Datalist dropdown
     function checkDatalistFocus(element, vIndex, fIndex) {
       if (element.value && appData.uniqueFruits && appData.uniqueFruits.some(f => f.toLowerCase() === element.value.toLowerCase())) {
         const qtyInput = document.getElementById(`qty-input-${vIndex}-${fIndex}`);
@@ -1018,14 +1016,13 @@
       }
     }
 
-    // Auto-focus CARRIAGE if user selects an existing Vendor from the Datalist
     function checkVendorDatalistFocus(element, vIndex) {
       if (element.value && appData.uniqueVendors && appData.uniqueVendors.some(v => v.toLowerCase() === element.value.toLowerCase())) {
         const carriageInput = document.getElementById(`carriage-input-${vIndex}`);
         if (carriageInput) carriageInput.focus();
       }
     }
-    
+
     function checkFruitRecs(element, vIndex, fIndex) {
       const val = element.value.trim().toLowerCase();
       const recContainer = document.getElementById(`fruit-recs-${vIndex}-${fIndex}`);
@@ -1069,7 +1066,6 @@
       const recContainer = document.getElementById(`fruit-recs-${vIndex}-${fIndex}`);
       if (recContainer) recContainer.style.display = 'none';
       
-      // Auto-focus the corresponding QTY field
       const qtyInput = document.getElementById(`qty-input-${vIndex}-${fIndex}`);
       if (qtyInput) qtyInput.focus();
     }
@@ -1160,30 +1156,6 @@
       }
     }
 
-    function addReceiptVendorBlockAndFocus() {
-      addReceiptVendorBlock();
-      setTimeout(() => {
-        const newVIndex = receiptDraft.length - 1;
-        const newVendorInput = document.getElementById(`vendor-input-${newVIndex}`);
-        if (newVendorInput) {
-           newVendorInput.focus();
-           newVendorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 50);
-    }
-
-    function addReceiptFruitRowAndFocus(vIndex) {
-      addReceiptFruitRow(vIndex);
-      setTimeout(() => {
-        const newFIndex = receiptDraft[vIndex].fruits.length - 1;
-        const newFruitInput = document.getElementById(`fruit-input-${vIndex}-${newFIndex}`);
-        if (newFruitInput) {
-           newFruitInput.focus();
-           newFruitInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 50);
-    }
-
     function renderReceiptDraft() {
       const container = document.getElementById('receiptVendorsContainer');
       let html = '';
@@ -1201,7 +1173,6 @@
 
         html += `<div class="receipt-vendor-block" style="padding: 8px; margin-bottom: 12px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">`;
         
-        // Compact Header Row (Only shown once per vendor block)
         html += `
           <div style="display: grid; grid-template-columns: 1.2fr 0.8fr 1fr 0.6fr auto; gap: 4px; margin-bottom: 6px; font-size: 10px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; text-align: center;">
             <div style="text-align: left;">Vendor ${vIndex + 1}</div>
@@ -1305,7 +1276,6 @@
       document.getElementById('saveReceiptsBtn').innerText = 'Save All';
     }
 
-    // --- RECEIPT EDIT & DELETE HANDLERS ---
     function deleteReceiptRow(rowId) {
       showConfirm("Delete Fruit", "Delete this fruit entry?", () => {
         apiCall('delete', { target: 'receipt', deleteType: 'row', id: rowId });
@@ -1324,7 +1294,6 @@
       });
     }
 
-    // Labor Modal Specific Handlers
     function editLaborRatePrompt(dateStr, currentRate) {
       activeReceiptEdit = { type: 'labor', date: dateStr };
       document.getElementById('editLaborRateInput').value = currentRate;
