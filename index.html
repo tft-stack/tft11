@@ -178,7 +178,7 @@
             <div class="input-group"><label title="Cash Counted (₹)">Cash Counted</label><input type="number" id="cashCounted" value="0" step="any"></div>
             <div class="input-group"><label>UPI (₹)</label><input type="number" id="upi" value="0" step="any"></div>
             <div class="input-group"><label>Credit (₹)</label><input type="number" id="credit" value="0" step="any"></div>
-            <div class="input-group"><label>Cheque (₹)</label><input type="number" id="cheque" value="0" step="any"></div>
+            <div class="input-group"><label>Cheque (₹)</label><input type="number" id="editCheque" step="any"></div>
             <div class="input-group"><label>Others (₹)</label><input type="number" id="others" value="0" step="any"></div>
             <button class="add-btn" id="saveBtn" onclick="saveEntry('sale')">+</button>
           </div>
@@ -344,7 +344,7 @@
         <div class="input-group"><label>Cash Counted (₹)</label><input type="number" id="editCashCounted" step="any"></div>
         <div class="input-group"><label>UPI (₹)</label><input type="number" id="editUpi" step="any"></div>
         <div class="input-group"><label>Credit (₹)</label><input type="number" id="editCredit" step="any"></div>
-        <div class="input-group"><label>Cheque (₹)</label><input type="number" id="editCheque" step="any"></div>
+        <div class="input-group"><label>Cheque (₹)</label><input type="number" id="editChequeModal" step="any"></div>
         <div class="input-group"><label>Others (₹)</label><input type="number" id="editOthers" step="any"></div>
       </div>
       <div class="modal-action-row">
@@ -494,6 +494,10 @@
 
     let mtdTotal = localStorage.getItem('tft_cache_total') || 0;
     if (mtdTotal === "undefined" || mtdTotal === "null") mtdTotal = 0;
+
+    // --- NEW: Restore the cached row count to survive refreshes
+    let mtdDaysCount = localStorage.getItem('tft_cache_days') || 0;
+    if (mtdDaysCount === "undefined" || mtdDaysCount === "null") mtdDaysCount = 0;
 
     let offsets = { sale: 0, payment: 0, receipt: 0 };
     let hasMore = { sale: false, payment: false, receipt: false };
@@ -694,11 +698,16 @@
           if (result.uniqueFruits) appData.uniqueFruits = result.uniqueFruits;
           if (result.vendorChartData) appData.vendorChartData = result.vendorChartData;
           if (result.chartData) { chartData = result.chartData; localStorage.setItem('tft_cache_chart', JSON.stringify(chartData)); }
+          
           if (result.monthTotal !== undefined) mtdTotal = result.monthTotal;
+          // --- NEW: Retrieve Row Days Count from API
+          if (result.monthDaysCount !== undefined) mtdDaysCount = result.monthDaysCount;
         }
 
         localStorage.setItem('tft_cache_state', JSON.stringify(appData));
         localStorage.setItem('tft_cache_total', mtdTotal);
+        // --- NEW: Store row days count locally
+        localStorage.setItem('tft_cache_days', mtdDaysCount);
         renderAll();
       } catch (e) { showAlert("Network Sync Error", "Please check your connection."); }
     }
@@ -762,7 +771,10 @@
       }
       document.getElementById('data-list-body').innerHTML = sHtml || '<div style="text-align:center; padding:20px; color:var(--text-muted);">No records yet</div>';
       if (hasMore.sale) document.getElementById('data-list-body').innerHTML += `<button class="load-more-btn" onclick="apiCall('loadMore', {target:'sale', offset: offsets.sale+10})">Load More Sales</button>`;
-      document.getElementById('month-calc').innerText = new Date().toLocaleString('en-US', { month: 'long' }) + ': ₹' + formatINR(mtdTotal);
+      
+      // --- NEW: Calculate and Display Monthly Average based on Row Count
+      let avg = mtdDaysCount > 0 ? (mtdTotal / mtdDaysCount) : 0;
+      document.getElementById('month-calc').innerText = new Date().toLocaleString('en-US', { month: 'long' }) + ': ₹' + formatINR(mtdTotal) + ` (Avg: ₹${formatINR(Math.round(avg))}/day)`;
 
       // ---- 2. Payment Render ----
       let pHtml = '';
@@ -1408,9 +1420,9 @@
           return showAlert("Duplicate Entry", "A record for this date already exists.");
         }
         document.getElementById('saveBtn').innerText = '...';
-        await apiCall('add', { target: 'sale', record: { date: d, credit: document.getElementById('credit').value, upi: document.getElementById('upi').value, cashCounted: document.getElementById('cashCounted').value, cheque: document.getElementById('cheque').value, others: document.getElementById('others').value } });
+        await apiCall('add', { target: 'sale', record: { date: d, credit: document.getElementById('credit').value, upi: document.getElementById('upi').value, cashCounted: document.getElementById('cashCounted').value, cheque: document.getElementById('editCheque').value, others: document.getElementById('others').value } });
         document.getElementById('saveBtn').innerText = '+';
-        ['credit','upi','cashCounted','cheque','others'].forEach(id => document.getElementById(id).value = 0);
+        ['credit','upi','cashCounted','editCheque','others'].forEach(id => document.getElementById(id).value = 0);
       } 
     }
 
@@ -1420,7 +1432,7 @@
       document.getElementById('editCredit').value = row['Credit Amount'] || 0;
       document.getElementById('editUpi').value = row['UPI Amount'] || 0;
       document.getElementById('editCashCounted').value = row['Cash Counted'] || 0;
-      document.getElementById('editCheque').value = row['Cheque'] || 0;
+      document.getElementById('editChequeModal').value = row['Cheque'] || 0;
       document.getElementById('editOthers').value = row['Others'] || 0;
       document.getElementById('editModalOverlay').style.display = 'flex';
     }
@@ -1441,7 +1453,7 @@
     function submitEdit() {
       if(!activeEditId) return; const targetId = activeEditId; closeEditModal();
       document.getElementById('data-list-body').innerHTML = '<div style="text-align: center; padding: 20px;">Updating...</div>';
-      apiCall('update', { target: 'sale', id: targetId, record: { credit: document.getElementById('editCredit').value, upi: document.getElementById('editUpi').value, cashCounted: document.getElementById('editCashCounted').value, cheque: document.getElementById('editCheque').value, others: document.getElementById('editOthers').value } });
+      apiCall('update', { target: 'sale', id: targetId, record: { credit: document.getElementById('editCredit').value, upi: document.getElementById('editUpi').value, cashCounted: document.getElementById('editCashCounted').value, cheque: document.getElementById('editChequeModal').value, others: document.getElementById('editOthers').value } });
     }
 
     function submitVendorEdit() {
